@@ -49,6 +49,8 @@ target_link_libraries (statistical_removal ${PCL_LIBRARIES})
 add_executable (triangle3 ${PROJECT_SOURCE_DIR}/src/triangle3.cpp)
 target_link_libraries (triangle3 ${PCL_LIBRARIES})
 
+add_executable (fuse ${PROJECT_SOURCE_DIR}/src/Fuse.cpp)
+target_link_libraries (fuse ${PCL_LIBRARIES})
 
 add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)
 target_link_libraries (calib ${OpenCV_LIBS})
