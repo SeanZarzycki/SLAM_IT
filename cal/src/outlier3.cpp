@@ -27,7 +27,7 @@ int parseArgument(char* arg)
       T = foption;
       return 0;
     }
-    if(1==sscanf(arg,"-f%s"), buf)
+    if(1==sscanf(arg,"-f%s", buf))
     {
       return 1;
     }
