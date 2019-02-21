@@ -68,8 +68,8 @@ int main( int argc, char** argv )
 	vector<vector<Point>> pts;
 
 	// open input files
-	pts_file.open(head + "_points.txt");
-	frames_file.open(head + "_frames.txt");
+	pts_file.open("../dat/raw/" + head + "_points.txt");
+	frames_file.open("../dat/raw/" + head + "_frames.txt");
 
 	// check if both files are valid
 	if (pts_file.is_open() && frames_file.is_open())
@@ -98,17 +98,6 @@ int main( int argc, char** argv )
 				frames[tmp_frame[i].id()].push_back(tmp_frame[i]);
 		}
 		
-		/*
-		for (int i = 0;i < 10;i++)
-		{
-			cout << "Index " << i << ", sz " << frames[i].size();
-			if (frames[i].size() > 0)
-				cout << ", ID " << frames[i].front().id() << "\n";
-			else
-				cout << "\n";
-		}*/
-
-
 		cout << "Frames Completed\nParsing Points\n";
 
 		// Parse Points
@@ -174,11 +163,9 @@ int main( int argc, char** argv )
             cloud[i].applyFrame(tmp, dens);
 		}
         
-        //cout << cloud[47824].c(0) << "\n";
-        
 		cout << "Transformations Completed\nWriting to PCD file\n";
 
-		out_file.open(head + ".pcd");
+		out_file.open("../dat/pcl/" + head + ".pcd");
 
 		// header
 		out_file << "VERSION .7\n";
@@ -195,32 +182,10 @@ int main( int argc, char** argv )
         long cc;
 		for(int i = 0;i < cloud.size();i++)
 		{
-            if(i >= 47824)
-            {
-                cout << i << " " << cind[i] << "\n";
-            }
             if(dens == 0)
                 cc = (((uint8_t) cloud[i].c()) << 16 | ((uint8_t) cloud[i].c()) << 8 | ((uint8_t) cloud[i].c()));
             else
-            {
-                /*
-                cout << (i) << ", " << (cind[i] << "\n";
-                
-                cout << cloud[i].x() << " " << cloud[i].y() << " " << cloud[i].z() << "\n";
-                
-                cout << ((int) ((uint8_t) cloud[i].c(cind[i]))) << "\n";
-                */
-                
                 cc = (((uint8_t) cloud[i].c(cind[i])) << 16 | ((uint8_t) cloud[i].c(cind[i])) << 8 | ((uint8_t) cloud[i].c(cind[i])));
-            }
-            /*
-            if(dens == 0)
-                cc = (float) (((uint8_t) cloud[i].c()) << 16 | ((uint8_t) cloud[i].c()) << 8 | ((uint8_t) cloud[i].c()));
-            else
-                cc = (float) (((uint8_t) cloud[i].c(i % 8)) << 16 | ((uint8_t) cloud[i].c(i % 8)) << 8 | ((uint8_t) cloud[i].c(i % 8)));*/
-            
-            if(i >= 47824)
-                cout << "check\n";
             
 			out_file << cloud[i].x() << " " << cloud[i].y() << " " << cloud[i].z() << " " << cc << "\n";
 		}

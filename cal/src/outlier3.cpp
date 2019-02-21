@@ -47,8 +47,8 @@ int parseArgument(char* arg)
 
 int main (int argc, char** argv)
 {
-  filename = "vicon_1_2_2r_v2d.pcd";
-  K = 1000;
+  filename = "phone.pcd";
+  K = 100;
   T = 0.01;
   scan_val = 0;
   int i = 1;
@@ -64,7 +64,7 @@ int main (int argc, char** argv)
   // Fill in the cloud data
   pcl::PCDReader reader;
   // Replace the path below with the path where you saved your file
-  reader.read<pcl::PointXYZRGB> (filename, *cloud);
+  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + filename, *cloud);
 
   std::cerr << "Cloud before filtering: " << std::endl;
   std::cerr << *cloud << std::endl;
@@ -80,7 +80,7 @@ int main (int argc, char** argv)
   std::cerr << *cloud_filtered << std::endl;
 
   pcl::PCDWriter writer;
-  writer.write<pcl::PointXYZRGB> ("cloud_inliers.pcd", *cloud_filtered, false);
+  writer.write<pcl::PointXYZRGB> ("../dat/filt/cloud_inliers.pcd", *cloud_filtered, false);
 
 
   sor.setNegative (true);
@@ -89,7 +89,7 @@ int main (int argc, char** argv)
   std::cerr << "Cloud outliers: " << std::endl;
   std::cerr << *cloud_outliers << std::endl;
   
-  writer.write<pcl::PointXYZRGB> ("cloud_outliers.pcd", *cloud_outliers, false);
+  writer.write<pcl::PointXYZRGB> ("../dat/filt/cloud_outliers.pcd", *cloud_outliers, false);
 
 exit(0);
 }

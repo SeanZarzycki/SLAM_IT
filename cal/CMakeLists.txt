@@ -40,12 +40,6 @@ set(conv_SOURCE_FILES
 
 
 
-add_executable(view_cloud ${PROJECT_SOURCE_DIR}/src/main_view.cpp )
-target_link_libraries(view_cloud ${PCL_LIBRARIES})
-
-add_executable(view_example ${PROJECT_SOURCE_DIR}/src/main2.cpp )
-target_link_libraries(view_example ${PCL_LIBRARIES})
-
 add_executable(view_example3 ${PROJECT_SOURCE_DIR}/src/main3.cpp )
 target_link_libraries(view_example3 ${PCL_LIBRARIES})
 
