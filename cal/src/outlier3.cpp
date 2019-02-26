@@ -4,11 +4,11 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 
-int K;
-float T;
+int K, N;
+float T, R;
 int scan_val;
 std::string filename;
-bool rad_rem;
+int rad_rem;
 
 int parseArgument(char* arg)
 {
@@ -29,13 +29,28 @@ int parseArgument(char* arg)
       T = foption;
       return 0;
     }
+    if(1==sscanf(arg,"N=%d", &option))
+    {
+      N = option;
+      return 0;
+    }
+    if(1==sscanf(arg,"R=%f", &foption))
+    {
+      R = foption;
+      return 0;
+    }
     if(1==sscanf(arg,"-%s", buf))
     {
       if(strcmp(buf, "f") == 0)
         return 1;
       else if(strcmp(buf, "r") == 0)
       {
-        rad_rem = true;
+        rad_rem = 1;
+        return 0;
+      }
+      else if(strcmp(buf, "b") == 0)
+      {
+        rad_rem = 2;
         return 0;
       }
     }
@@ -57,9 +72,11 @@ int main (int argc, char** argv)
 {
   // defaults
   filename = "phone.pcd";
-  rad_rem = false;
+  rad_rem = 0;
   K = 100;
   T = 0.01;
+  N = 100;
+  R = 0.5;
 
   scan_val = 0;
   int i = 1;
@@ -77,18 +94,28 @@ int main (int argc, char** argv)
   std::cout << "Cloud before filtering: " << std::endl;
   std::cout << *cloud << std::endl;
 
-  if(rad_rem)
+  if(rad_rem >= 1)
   {
     pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
     // build the filter
     outrem.setInputCloud(cloud);
-    outrem.setRadiusSearch(T);
-    outrem.setMinNeighborsInRadius (K);
+    outrem.setRadiusSearch(R);
+    outrem.setMinNeighborsInRadius (N);
     // apply filter
     outrem.filter (*cloud_filtered);
   }
-  else
+  if(rad_rem == 0)
   {
+    // Create the filtering object
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+    sor.setInputCloud (cloud);
+    sor.setMeanK (K);
+    sor.setStddevMulThresh (T);
+    sor.filter (*cloud_filtered);
+  }
+  else if(rad_rem == 2)
+  {
+    *cloud = *cloud_filtered;
     // Create the filtering object
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
     sor.setInputCloud (cloud);
