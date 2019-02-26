@@ -1,0 +1,21 @@
+
+/**/ Run Phone
+// Convert From Raw to pcd 
+./bin/data_convert name=phone dl=0.75 dh=2
+// remove outliers
+./bin/statistical_removal -f phone.pcd T=0.1 K=100
+// display results
+./bin/view_example3 -s -f phone.pcd
+
+/**/ Run Phone_r
+// Convert From Raw to pcd 
+./bin/data_convert name=phone_r dl=0.75 dh=2
+// remove outliers
+./bin/statistical_removal -f phone_r.pcd T=0.1 K=100
+// display results
+./bin/view_example3 -s -f phone.pcd
+
+/**/ Fuse
+./bin/fuse
+// or
+./bin/fuse phone.pcd phone_r.pcd
