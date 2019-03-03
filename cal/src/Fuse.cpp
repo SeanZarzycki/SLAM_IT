@@ -34,8 +34,8 @@ int main(int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PCDReader reader;
-    reader.read<pcl::PointXYZ> ("../dat/pcl/" + file1, *cloud1);
-    reader.read<pcl::PointXYZ> ("../dat/pcl/" + file2, *cloud2);
+    reader.read<pcl::PointXYZ> ("../dat/filt/" + file1, *cloud1);
+    reader.read<pcl::PointXYZ> ("../dat/filt/" + file2, *cloud2);
 
 
 
@@ -87,9 +87,15 @@ int parseArgument(char* arg)
     }
 
     if(file1.empty())
+    {
         file1 = arg;
+        return 0;
+    }
     if(file2.empty())
+    {
         file2 = arg;
+        return 0;
+    }
   }/*
   else if(scan_val == 1)
   {

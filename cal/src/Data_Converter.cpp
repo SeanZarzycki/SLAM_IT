@@ -11,6 +11,7 @@ using namespace std;
 
 string head;
 int dens;
+float dl, dh;
 
 void parseArgument(const char* arg)
 {
@@ -30,6 +31,16 @@ void parseArgument(const char* arg)
             dens = option;
 		return;
 	}
+    if(1==sscanf(arg,"dl=%f",&foption))
+	{
+        dl = foption;
+		return;
+	}
+    if(1==sscanf(arg,"dh=%f",&foption))
+	{
+        dh = foption;
+		return;
+	}
 
 
 	if(strcmp(arg, "-h") != 0 && strcmp(arg, "--help"))
@@ -37,12 +48,16 @@ void parseArgument(const char* arg)
     
     cout << "Help:\n"
          << "name=\"...\" is the input name for the two text files to be converted\n..._points.txt and ..._frames.txt must both exist for the conversion to work\nCan also include location if not in current folder\n\n"
-         << "dens=0 is the default which will use the centers as locations for each point in the cloud, using the mean color\ndens=1 adds some randomness to better fill out the space. Each point becomes 8 points with some added noise based on its variance and depth\n\n";
+         << "dens=0 is the default which will use the centers as locations for each point in the cloud, using the mean color\ndens=1 adds some randomness to better fill out the space. Each point becomes 8 points with some added noise based on its variance and depth"
+		 << "dl is the minimum acceptable depth.  Any points with lower depth will be removed.  Default is 0."
+		 << "dh is the maximum acceptable depth.  Any points with higher depth will be removed.  Default is Inf.\n\n";
 }
 
 
 int main( int argc, char** argv )
 {
+	dl = 0;
+	dh = numeric_limits<float>::infinity();
     dens = 0;
 	for(int i=1; i<argc;i++)
 		parseArgument(argv[i]);
@@ -118,7 +133,8 @@ int main( int argc, char** argv )
 			pts.resize(max_id + 1);
 			for (int i = 0;i < tmp_pt.size();i++)
 				if(tmp_pt[i].id() >= 0)
-					pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
+					if(tmp_pt[i].d() >= dl && tmp_pt[i].d() <= dh)
+						pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
 		}
         
         vector<Point> cloud;

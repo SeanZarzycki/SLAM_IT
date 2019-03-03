@@ -227,6 +227,14 @@ pcl::visualization::PCLVisualizer::Ptr interactionCustomizationVis ()
 // --------------
 int main (int argc, char** argv)
 {
+  // get filename
+  std::string filename;
+  int temp = pcl::console::find_argument (argc, argv, "-f");
+  if(temp >= 0 && temp < argc)
+    filename = argv[temp+1];
+  else
+    filename = "cloud_inliers.pcd";
+
   // --------------------------------------
   // -----Parse Command Line Arguments-----
   // --------------------------------------
@@ -283,8 +291,8 @@ int main (int argc, char** argv)
   // ------------------------------------
   pcl::PointCloud<pcl::PointXYZ>::Ptr basic_cloud_ptr (new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud_ptr (new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::io::loadPCDFile ("../dat/filt/cloud_inliers.pcd", *basic_cloud_ptr);
-  pcl::io::loadPCDFile ("../dat/filt/cloud_inliers.pcd", *point_cloud_ptr);
+  pcl::io::loadPCDFile ("../dat/filt/" + filename, *basic_cloud_ptr);
+  pcl::io::loadPCDFile ("../dat/filt/" + filename, *point_cloud_ptr);
 
  /* std::cout << "Generating example point clouds.\n\n";
   // We're going to make an ellipse extruded along the z-axis. The colour for
