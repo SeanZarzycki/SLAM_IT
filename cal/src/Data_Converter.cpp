@@ -109,7 +109,7 @@ int main( int argc, char** argv )
 			frames_file.close();
 			cout << "Reorganizing Frames\n";
 			frames.resize(max_id + 1);
-			for (int i = 0;i < tmp_frame.size();i++)
+			for (size_t i = 0;i < tmp_frame.size();i++)
 				frames[tmp_frame[i].id()].push_back(tmp_frame[i]);
 		}
 		
@@ -131,7 +131,7 @@ int main( int argc, char** argv )
 			pts_file.close();
 			cout << "Reorganizing Points\n";
 			pts.resize(max_id + 1);
-			for (int i = 0;i < tmp_pt.size();i++)
+			for (size_t i = 0;i < tmp_pt.size();i++)
 				if(tmp_pt[i].id() >= 0)
 					if(tmp_pt[i].d() >= dl && tmp_pt[i].d() <= dh)
 						pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
@@ -151,6 +151,7 @@ int main( int argc, char** argv )
                     for(size_t j = 0;j < 8;j++)
                     {
                         cloud[it] = pts[i].back();
+						cloud[it].setP(j);
                         cind[it] = j;
                         it++;
                     }
@@ -169,7 +170,7 @@ int main( int argc, char** argv )
         
 		Frame* tmp = &frames[0].back();
 		int fi = 0;
-		for (int i = 0;i < cloud.size();i++)
+		for (size_t i = 0;i < cloud.size();i++)
 		{
             if (cloud[i].frame_id() != fi)
             {
@@ -196,7 +197,7 @@ int main( int argc, char** argv )
 		// data
 		//float cc;
         long cc;
-		for(int i = 0;i < cloud.size();i++)
+		for(size_t i = 0;i < cloud.size();i++)
 		{
             if(dens == 0)
                 cc = (((uint8_t) cloud[i].c()) << 16 | ((uint8_t) cloud[i].c()) << 8 | ((uint8_t) cloud[i].c()));

@@ -52,7 +52,9 @@ public:
 	Point(std::string);
 	Point(std::string, Frame*);
 	~Point();
-
+	
+	// change which pixel for dens
+	void setP(int);
 	// calculates world position using camera model
 	void applyFrame(Frame*);
     void applyFrame(Frame*, bool);

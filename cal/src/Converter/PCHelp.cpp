@@ -3,12 +3,10 @@
 
 #include <vector>
 #include <string>
-#include <random>
 
 
-std::random_device rd{};
-std::mt19937 gen{rd()};
-std::normal_distribution<> nd{0, 1};
+
+int staticPattern[8][2] = {{0,-2},	  {-1,-1},	   {1,-1},		{-2,0},		 {0,0},		  {2,0},	   {-1,1},		{0,2}};
 
 /*
 Frame Class
@@ -140,10 +138,8 @@ void Point::init(std::string str)
 		{
 			col.push_back(std::atof(str.substr(temp, ind->at(6 + j) - temp).c_str()));
 			temp = ind->at(6 + j) + 2;
-
-			mc += col.back();
 		}
-		mc /= 8.0;
+		mc = col[4];
 
 		std_v = std::atof(str.substr(temp, ind->at(14) - temp).c_str());
 		temp = ind->at(14) + 2;
@@ -153,6 +149,12 @@ void Point::init(std::string str)
 	delete ind;
 }
 
+void Point::setP(int i)
+{
+	iu += staticPattern[i][0];
+	iv += staticPattern[i][1];
+	mc = col[i];
+}
 void Point::applyFrame(Frame* frame)
 {
     applyFrame(frame, false);
@@ -164,12 +166,9 @@ void Point::applyFrame(Frame* frame, bool dens)
 	fr = frame;
 
 	float tx, ty, tz;
-	tx = depth * (iu - frame->cx() + std_v * nd(gen)) / frame->fx();
-	ty = depth * (iv - frame->cy() + std_v * nd(gen)) / frame->fy();
-	if(!dens)
-        tz = depth;
-    else
-        tz = depth * (1 + 2 * (rand()/(float)RAND_MAX - 0.5f) / frame->fx());
+	tx = depth * (iu - frame->cx()) / frame->fx();
+	ty = depth * (iv - frame->cy()) / frame->fy();
+	tz = depth;
 
 	float p[3];
 	for (int i = 0;i < 3;i++)
