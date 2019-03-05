@@ -31,12 +31,6 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
-# Sources files
-set(conv_SOURCE_FILES
-  ${PROJECT_SOURCE_DIR}/src/Converter/pch.cpp
-  ${PROJECT_SOURCE_DIR}/src/Converter/PCHelp.cpp
-)
-
 
 
 
@@ -56,6 +50,6 @@ add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)
 target_link_libraries (calib ${OpenCV_LIBS})
 
 add_executable(data_convert ${PROJECT_SOURCE_DIR}/src/Data_Converter.cpp )
-target_link_libraries(data_convert ${conv_SOURCE_FILES})
+target_link_libraries(data_convert ${PCL_LIBRARIES})
 
 

@@ -1,17 +1,163 @@
-#include "Converter/pch.h"
 #include <iostream>
 #include <fstream>
 
 #include <string>
 #include <cstring>
-#include<stdlib.h>
+#include <stdlib.h>
+#include <limits>
 
+#include <boost/thread/thread.hpp>
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
 
 using namespace std;
 
 string head;
-int dens;
+int dens, cc;
 float dl, dh;
+
+class Frame
+{
+public:
+	// declaration
+	Frame(std::string);
+	~Frame();
+
+	// get functions
+	int id();
+	long time();
+	int size();
+	float c2w(int, int);
+	float fx();
+	float fy();
+	float cx();
+	float cy();
+
+private:
+	// frame id
+	int id_v;
+	// frame shell id?
+	int inc_id;
+	// time stamp
+	long time_v;
+
+	// number of points associated with frame ?
+	int sz, sz2, sz3;
+
+	// camera to world transformation matrix
+	float c2w_v[3][4];
+
+	// camera parameters
+	float fx_v, fy_v, cx_v, cy_v;
+};
+
+class CustPoint
+{
+public:
+	// declaration
+	CustPoint();
+	CustPoint(std::string);
+	CustPoint(std::string, Frame*);
+	~CustPoint();
+	
+	// change which pixel for dens
+	void setP(int);
+	// calculates world position using camera model
+	void applyFrame(Frame*);
+    void applyFrame(Frame*, bool);
+	// returns whether "applyFrame" has been called yet
+	bool isFrameApplied();
+
+	// get functions
+	int id();
+	long time();
+	int frame_id();
+	float u();
+	float v();
+	float d();
+	float c();
+	float c(int);
+	float r();
+	float r(int);
+	float g();
+	float g(int);
+	float b();
+	float b(int);
+	float std();
+
+	// get functions after frame is applied
+	float x();
+	float y();
+	float z();
+	Frame* getFrame();
+
+private:
+	// constructor helper
+	void init(std::string);
+
+	// point id
+	int id_v;
+	// time stamp
+	long time_v;
+	// associated frame id
+	int fid;
+
+	// image x coordinate
+	int iu;
+	// image y coordinate
+	int iv;
+	// image depth value
+	float depth;
+	// color value(s)
+	std::vector<float> col;
+	// mean color value
+	float mc;
+	// red value(s)
+	std::vector<float> cr;
+	// mean red value
+	float mr;
+	// green value(s)
+	std::vector<float> cg;
+	// green red value
+	float mg;
+	// blue value(s)
+	std::vector<float> cb;
+	// blue red value
+	float mb;
+	// uncertainty
+	float std_v;
+	// number of good points?
+	int sz;
+
+	// has frame been applied?
+	bool asfr;
+	// pointer to frame that was applied
+	Frame* fr;
+	// world x coordinate
+	float px;
+	// world y coordinate
+	float py;
+	// world z coordinate
+	float pz;
+};
+
+void textscan(std::string str, std::string del, std::vector<size_t>* ind);
+
+void color_correct(std::vector<CustPoint> cloud, std::string file)
+{
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr pcd (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::io::loadPCDFile (file, *pcd);
+
+    for(size_t i = 0;i < cloud.size();i++)
+    {
+        pcd->points[i].r = cloud[i].r();
+        pcd->points[i].g = cloud[i].g();
+        pcd->points[i].b = cloud[i].b();
+    }
+
+    pcl::PCDWriter writer;
+    writer.write<pcl::PointXYZRGB> (file, *pcd, false);
+}
 
 void parseArgument(const char* arg)
 {
@@ -41,6 +187,11 @@ void parseArgument(const char* arg)
         dh = foption;
 		return;
 	}
+	if(1==sscanf(arg,"cc=%d",&option))
+	{
+        cc = option;
+		return;
+	}
 
 
 	if(strcmp(arg, "-h") != 0 && strcmp(arg, "--help"))
@@ -59,6 +210,7 @@ int main( int argc, char** argv )
 	dl = 0;
 	dh = numeric_limits<float>::infinity();
     dens = 0;
+	cc = 1;
 	for(int i=1; i<argc;i++)
 		parseArgument(argv[i]);
 	if(argc == 1)
@@ -80,7 +232,7 @@ int main( int argc, char** argv )
 
 
 	vector<vector<Frame>> frames;
-	vector<vector<Point>> pts;
+	vector<vector<CustPoint>> pts;
 
 	// open input files
 	pts_file.open("../dat/raw/" + head + "_points.txt");
@@ -118,10 +270,10 @@ int main( int argc, char** argv )
 		// Parse Points
         int max_id = 0;
 		{
-			vector<Point> tmp_pt;
+			vector<CustPoint> tmp_pt;
 			while (getline(pts_file, line))
 			{
-				Point pt(line);
+				CustPoint pt(line);
 
 				if (pt.id() > max_id)
 					max_id = pt.id();
@@ -137,7 +289,7 @@ int main( int argc, char** argv )
 						pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
 		}
         
-        vector<Point> cloud;
+        vector<CustPoint> cloud;
         vector<int> cind;
         if(dens == 1)
         {
@@ -196,15 +348,19 @@ int main( int argc, char** argv )
 
 		// data
 		//float cc;
-        long cc;
+        int tc;
 		for(size_t i = 0;i < cloud.size();i++)
 		{
             if(dens == 0)
-                cc = (((uint8_t) cloud[i].c()) << 16 | ((uint8_t) cloud[i].c()) << 8 | ((uint8_t) cloud[i].c()));
+            {
+				tc = (int) (((int) cloud[i].r()) << 16 | ((int) cloud[i].g()) << 8 | ((int) cloud[i].b()));
+			}
             else
-                cc = (((uint8_t) cloud[i].c(cind[i])) << 16 | ((uint8_t) cloud[i].c(cind[i])) << 8 | ((uint8_t) cloud[i].c(cind[i])));
+			{
+                tc = (int) (((int) cloud[i].r(cind[i])) << 16 | ((int) cloud[i].g(cind[i])) << 8 | ((int) cloud[i].b(cind[i])));
+			}
             
-			out_file << cloud[i].x() << " " << cloud[i].y() << " " << cloud[i].z() << " " << cc << "\n";
+			out_file << cloud[i].x() << " " << cloud[i].y() << " " << cloud[i].z() << " " << tc << "\n";
 		}
         
         delete tmp;
@@ -213,6 +369,12 @@ int main( int argc, char** argv )
 
 		cout << "PCD File Completed\n";
 		cout << cloud.size() << " points saved\n";
+
+
+		if(cc == 1)
+		{
+			color_correct(cloud, "../dat/pcl/" + head + ".pcd");
+		}
 	}
 	else
 	{
@@ -226,13 +388,248 @@ int main( int argc, char** argv )
 	cout << "Exiting Program\n";
 }
 
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
 
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
+
+
+
+int staticPattern[8][2] = {{0,-2},	  {-1,-1},	   {1,-1},		{-2,0},		 {0,0},		  {2,0},	   {-1,1},		{0,2}};
+
+/*
+Frame Class
+*/
+Frame::Frame(std::string str)
+{
+	std::vector<size_t>* ind = new std::vector<size_t>();
+	textscan(str, ", ", ind);
+
+
+	if (ind->size() == 22)
+	{
+		// id
+		size_t temp = ind->at(0) + 2;
+		id_v = std::stoi(str.substr(0, temp - 2));
+		// inc id ?? not entirely sure what this is
+		inc_id = std::stoi(str.substr(temp, ind->at(1) - temp));
+		temp = ind->at(1) + 2;
+
+		// time stamp
+		time_v = std::stol(str.substr(temp, ind->at(2) - temp));
+		temp = ind->at(2) + 2;
+
+		// number of points
+		sz = std::stoi(str.substr(temp, ind->at(3) - temp));
+		temp = ind->at(3) + 2;
+		// number of points (HSsz?)
+		sz2 = std::stoi(str.substr(temp, ind->at(4) - temp));
+		temp = ind->at(4) + 2;
+		// number of points (IPsz?  Incomplete points?)
+		sz3 = std::stoi(str.substr(temp, ind->at(5) - temp));
+		temp = ind->at(5) + 2;
+
+		// Camera to World Transformation Matrix
+		for (int i = 0;i < 3;i++)
+			for (int j = 0;j < 4;j++)
+			{
+				c2w_v[i][j] = std::atof(str.substr(temp, ind->at(6 + i * 4 + j) - temp).c_str());
+				temp = ind->at(6 + i * 4 + j) + 2;
+			}
+
+		// focal parameters
+		fx_v = std::atof(str.substr(temp, ind->at(18) - temp).c_str());
+		temp = ind->at(18) + 2;
+		fy_v = std::atof(str.substr(temp, ind->at(19) - temp).c_str());
+		temp = ind->at(19) + 2;
+		cx_v = std::atof(str.substr(temp, ind->at(20) - temp).c_str());
+		temp = ind->at(20) + 2;
+		cy_v = std::atof(str.substr(temp, ind->at(21) - temp).c_str());
+	}
+
+	delete ind;
+}
+Frame::~Frame()  { }
+int Frame::id() { return id_v; }
+long Frame::time() { return time_v; }
+int Frame::size() { return sz; }
+float Frame::c2w(int i, int j) { return c2w_v[i][j]; }
+float Frame::fx() { return fx_v; }
+float Frame::fy() { return fy_v; }
+float Frame::cx() { return cx_v; }
+float Frame::cy() { return cy_v; }
+CustPoint::CustPoint()
+{
+
+}
+CustPoint::CustPoint(std::string str)
+{
+	init(str);
+}
+CustPoint::CustPoint(std::string str, Frame* frame)
+{
+	init(str);
+	applyFrame(frame);
+}
+CustPoint::~CustPoint()  { }
+void CustPoint::init(std::string str)
+{
+	asfr = false;
+
+	px = 0;
+	py = 0;
+	pz = 0;
+
+	std::vector<size_t>* ind = new std::vector<size_t>();
+	textscan(str, ", ", ind);
+
+
+	if (ind->size() == 16)
+	{
+		size_t temp = ind->at(0) + 2;
+		fid = std::stoi(str.substr(0, temp - 2));
+		id_v = std::stoi(str.substr(temp, ind->at(1) - temp));
+		temp = ind->at(1) + 2;
+
+		time_v = std::stol(str.substr(temp, ind->at(2) - temp));
+		temp = ind->at(2) + 2;
+
+		iu = std::stoi(str.substr(temp, ind->at(3) - temp));
+		temp = ind->at(3) + 2;
+		iv = std::stoi(str.substr(temp, ind->at(4) - temp));
+		temp = ind->at(4) + 2;
+		depth = 1 / std::atof(str.substr(temp, ind->at(5) - temp).c_str());
+		temp = ind->at(5) + 2;
+
+
+		for (int j = 0;j < 8;j++)
+		{
+			col.push_back(std::atof(str.substr(temp, ind->at(6 + j) - temp).c_str()));
+			temp = ind->at(6 + j) + 2;
+		}
+		mc = col[4];
+
+		for (int j = 0;j < 8;j++)
+		{
+			cr.push_back(col[j]);
+			cg.push_back(col[j]);
+			cb.push_back(col[j]);
+		}
+		mr = cr[4];
+		mg = cg[4];
+		mb = cb[4];
+
+		std_v = std::atof(str.substr(temp, ind->at(14) - temp).c_str());
+		temp = ind->at(14) + 2;
+		sz = std::stoi(str.substr(temp, ind->at(15) - temp));
+	}
+	else if (ind->size() == 40)
+	{
+		size_t temp = ind->at(0) + 2;
+		fid = std::stoi(str.substr(0, temp - 2));
+		id_v = std::stoi(str.substr(temp, ind->at(1) - temp));
+		temp = ind->at(1) + 2;
+
+		time_v = std::stol(str.substr(temp, ind->at(2) - temp));
+		temp = ind->at(2) + 2;
+
+		iu = std::stoi(str.substr(temp, ind->at(3) - temp));
+		temp = ind->at(3) + 2;
+		iv = std::stoi(str.substr(temp, ind->at(4) - temp));
+		temp = ind->at(4) + 2;
+		depth = 1 / std::atof(str.substr(temp, ind->at(5) - temp).c_str());
+		temp = ind->at(5) + 2;
+
+
+		for (int j = 0;j < 8;j++)
+		{
+			col.push_back(std::atof(str.substr(temp, ind->at(6 + j) - temp).c_str()));
+			temp = ind->at(6 + j) + 2;
+		}
+		mc = col[4];
+
+		for (int j = 0;j < 8;j++)
+		{
+			cr.push_back(std::atof(str.substr(temp, ind->at(14 + 3*j) - temp).c_str()));
+			temp = ind->at(14 + 3*j) + 2;
+			cg.push_back(std::atof(str.substr(temp, ind->at(15 + 3*j) - temp).c_str()));
+			temp = ind->at(15 + 3*j) + 2;
+			cb.push_back(std::atof(str.substr(temp, ind->at(16 + 3*j) - temp).c_str()));
+			temp = ind->at(16 + 3*j) + 2;
+		}
+		mr = cr[4];
+		mg = cg[4];
+		mb = cb[4];
+
+		std_v = std::atof(str.substr(temp, ind->at(38) - temp).c_str());
+		temp = ind->at(38) + 2;
+		sz = std::stoi(str.substr(temp, ind->at(39) - temp));
+	}
+
+	delete ind;
+}
+
+void CustPoint::setP(int i)
+{
+	iu += staticPattern[i][0];
+	iv += staticPattern[i][1];
+	mc = col[i];
+	mr = cr[i];
+	mg = cg[i];
+	mb = cb[i];
+}
+void CustPoint::applyFrame(Frame* frame)
+{
+    applyFrame(frame, false);
+}
+void CustPoint::applyFrame(Frame* frame, bool dens)
+{
+	asfr = true;
+
+	fr = frame;
+
+	float tx, ty, tz;
+	tx = depth * (iu - frame->cx()) / frame->fx();
+	ty = depth * (iv - frame->cy()) / frame->fy();
+	tz = depth;
+
+	float p[3];
+	for (int i = 0;i < 3;i++)
+		p[i] = frame->c2w(i, 0) * tx + frame->c2w(i, 1) * ty + frame->c2w(i, 2) * tz + frame->c2w(i, 3);
+	px = p[0];
+	py = p[1];
+	pz = p[2];
+}
+bool CustPoint::isFrameApplied() { return asfr; }
+
+int CustPoint::id() { return id_v; }
+long CustPoint::time() { return time_v; }
+int CustPoint::frame_id() { return fid; }
+float CustPoint::u() { return iu; }
+float CustPoint::v() { return iv; }
+float CustPoint::d() { return depth; }
+float CustPoint::c() { return mc; }
+float CustPoint::c(int i) { return col[i]; }
+float CustPoint::r() { return mr; }
+float CustPoint::r(int i) { return cr[i]; }
+float CustPoint::g() { return mg; }
+float CustPoint::g(int i) { return cg[i]; }
+float CustPoint::b() { return mb; }
+float CustPoint::b(int i) { return cb[i]; }
+float CustPoint::std() { return std_v; }
+
+float CustPoint::x() { return px; }
+float CustPoint::y() { return py; }
+float CustPoint::z() { return pz; }
+Frame* CustPoint::getFrame() { return fr; }
+
+/*
+Helper Functions
+*/
+void textscan(std::string str, std::string del, std::vector<size_t>* ind)
+{
+	size_t temp = str.find(del);
+	while (temp != std::string::npos)
+	{
+		(*ind).push_back(temp);
+		temp = str.find(del, temp + del.length());
+	}
+	(*ind).push_back(str.length());
+}
