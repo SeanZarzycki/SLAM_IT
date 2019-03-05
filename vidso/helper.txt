@@ -1,0 +1,14 @@
+./bin/dso_dataset preset=0 files=~/data/sequence_44/images.zip vignette=~/data/sequence_44/vignette.png calib=~/data/sequence_44/camera.txt gamma=~/data/sequence_44/pcalib.txt
+
+
+output version:
+./bin/dso_dataset preset=0 files=~/data/sequence_44/images.zip vignette=~/data/sequence_44/vignette.png calib=~/data/sequence_44/camera.txt gamma=~/data/sequence_44/pcalib.txt quiet=1 results=1 nogui=1
+
+
+./bin/dso_dataset preset=0 mode=1 files=~/data/V1_02_medium/mav0/cam0/data calib=~/data/V1_02_medium/mav0/camera.txt quiet=1 results=1 nogui=1
+
+./bin/dso_dataset preset=0 mode=1 files=~/data/V1_02_medium/mav0/cam1/data calib=~/data/V1_02_medium/mav0/camera2.txt quiet=1 results=1 nogui=1 reverse=1
+
+table:
+./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=~/data/Table1/camera.txt quiet=1 results=1 nogui=1 nolog=1 nomt=1
+./bin/dso_dataset preset=0 mode=1 files=~/data/Table2/Images calib=~/data/Table2/camera.txt quiet=1 results=1 nogui=1 reverse=1
