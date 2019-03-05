@@ -43,8 +43,8 @@ int main(int argc, char** argv)
     reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file2, *cloud2);
 
 
-    color_correct(cloud1);
-    color_correct(cloud2);
+    //color_correct(cloud1);
+    //color_correct(cloud2);
 
 
     /*
@@ -88,10 +88,10 @@ int main(int argc, char** argv)
     pcl::compute3DCentroid(*cloud2, c2);
     cout << "Cloud A Center: \n" << c1 << "\n\n";
     cout << "Cloud B Center: \n" << c2 << endl;
-
+/*
     pcl::PointCloud<pcl::PointXYZ>::Ptr cloud3 (new pcl::PointCloud<pcl::PointXYZ>);
 
-    const float min_scale = 0.001f;
+    const float min_scale = 00.1f;
     const int n_octaves = 6;
     const int n_scales_per_octave = 10;
     const float min_contrast = 0.00f;
@@ -112,13 +112,13 @@ int main(int argc, char** argv)
     cout << "Copying to cloud\n";;
 
     copyPointCloud(result, *cloud3);
-
+*/
 
     // display clouds
     pcl::visualization::CloudViewer viewer ("Fuse Example");
-	viewer.showCloud(cloud1, "Cloud A");
-    //viewer.showCloud(cloud2, "Cloud B");
-    viewer.showCloud(cloud3, "Keypoints");
+	  viewer.showCloud(cloud1, "Cloud A");
+    viewer.showCloud(cloud2, "Cloud B");
+    //viewer.showCloud(cloud3, "Keypoints");
 	viewer.runOnVisualizationThreadOnce(viewOne);
 	
 	while (!viewer.wasStopped ())
