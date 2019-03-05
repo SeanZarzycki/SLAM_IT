@@ -58,7 +58,7 @@ pcl::visualization::PCLVisualizer::Ptr rgbVis (pcl::PointCloud<pcl::PointXYZRGB>
   pcl::visualization::PointCloudColorHandlerRGBField<pcl::PointXYZRGB> rgb(cloud);
   viewer->addPointCloud<pcl::PointXYZRGB> (cloud, rgb, "sample cloud");
   viewer->setPointCloudRenderingProperties (pcl::visualization::PCL_VISUALIZER_POINT_SIZE, 1, "sample cloud");
-  viewer->addCoordinateSystem (1.0);
+  //viewer->addCoordinateSystem (1.0);
   viewer->initCameraParameters ();
   return (viewer);
 }
@@ -305,7 +305,7 @@ int main (int argc, char** argv)
   pcl::io::loadPCDFile ("../dat/filt/" + filename, *basic_cloud_ptr);
   pcl::io::loadPCDFile ("../dat/filt/" + filename, *point_cloud_ptr);
 
-  color_correct(point_cloud_ptr);
+  //color_correct(point_cloud_ptr);
 
  /* std::cout << "Generating example point clouds.\n\n";
   // We're going to make an ellipse extruded along the z-axis. The colour for
