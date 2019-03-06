@@ -1,12 +1,13 @@
 #include <iostream>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
-//#include <pcl/registration/icp.h>
+#include <pcl/registration/icp.h>
 //#include <pcl/registration/ndt.h>
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/io.h>
 
 #include <pcl/common/centroid.h>
+#include <pcl/common/transforms.h>
 #include <pcl/keypoints/sift_keypoint.h>
 
 #include <string>
@@ -15,6 +16,7 @@ using namespace std;
 
 string file1, file2;
 int scan_val;
+bool col_diff, keys;
 
 int parseArgument(char*);
 void viewOne (pcl::visualization::PCLVisualizer&);
@@ -22,6 +24,8 @@ void color_correct(pcl::PointCloud<pcl::PointXYZRGB>::Ptr);
 
 int main(int argc, char** argv)
 {
+    col_diff = false;
+    keys = false;
     scan_val = 0;
     int i = 1;
     while(i < argc)
@@ -30,9 +34,9 @@ int main(int argc, char** argv)
         i++;
     }
     if(file1.empty())
-        file1 = "phone.pcd";
+        file1 = "table1_c.pcd";
     if(file2.empty())
-        file2 = "phone_r.pcd";
+        file2 = "table2_c.pcd";
 
 
     // load point clouds
@@ -46,16 +50,24 @@ int main(int argc, char** argv)
     //color_correct(cloud1);
     //color_correct(cloud2);
 
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud3 (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m3 (new pcl::PointCloud<pcl::PointXYZ>);
 
-    /*
+    
     // Iterative Closest Point
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m1 (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr m2 (new pcl::PointCloud<pcl::PointXYZ>);
+    reader.read<pcl::PointXYZ> ("../dat/match/" + file1, *m1);
+    reader.read<pcl::PointXYZ> ("../dat/match/" + file2, *m2);
     pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    icp.setInputSource(cloud2);
-    icp.setInputTarget(cloud1);
-    icp.align(*cloud3);
+    icp.setInputSource(m2);
+    icp.setInputTarget(m1);
+    icp.align(*m3);
     std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
     std::cout << icp.getFinalTransformation() << std::endl;
-    */
+    
+    pcl::transformPointCloud (*cloud2, *cloud3, icp.getFinalTransformation());
+
     /*
     // Normal Dist Transform
     pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
@@ -114,11 +126,15 @@ int main(int argc, char** argv)
     copyPointCloud(result, *cloud3);
 */
 
-    // display clouds
-    pcl::visualization::CloudViewer viewer ("Fuse Example");
-	  viewer.showCloud(cloud1, "Cloud A");
-    viewer.showCloud(cloud2, "Cloud B");
-    //viewer.showCloud(cloud3, "Keypoints");
+  // display clouds
+  pcl::visualization::CloudViewer viewer ("Fuse Example");
+  viewer.showCloud(cloud1, "Cloud A");
+  viewer.showCloud(cloud3, "Cloud B");
+  if(keys)
+  {
+    viewer.showCloud(m1, "Keypoints A");
+    viewer.showCloud(m3, "Keypoints B");
+  }
 	viewer.runOnVisualizationThreadOnce(viewOne);
 	
 	while (!viewer.wasStopped ())
@@ -148,9 +164,18 @@ int parseArgument(char* arg)
         
       return 0;
     }
-    if(1==sscanf(arg,"-f%s", buf))
+    if(1==sscanf(arg,"-%s", buf))
     {
-      return 1;
+      if(strcmp(buf, "c") == 0 || strcmp(buf, "-colors") == 0)
+      {
+        col_diff = true;
+        return 0;
+      }
+      if(strcmp(buf, "k") == 0 || strcmp(buf, "-keys") == 0)
+      {
+        keys = true;
+        return 0;
+      }
     }
 
     if(file1.empty())
@@ -178,10 +203,18 @@ int parseArgument(char* arg)
 
 void viewOne (pcl::visualization::PCLVisualizer& viewer)
 {
-	//viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 0.2, 0.2, "Cloud A");
-    //viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.2, 0.2, 1, "Cloud B");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 0, 0, "Keypoints");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 5, "Keypoints");
+  if(col_diff)
+  {
+	  viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 0.2, 0.2, "Cloud A");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.2, 0.2, 1, "Cloud B");
+  }
+  if(keys)
+  {
+    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 1, 0, "Keypoints A");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0, 1, 1, "Keypoints B");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 5, "Keypoints A");
+    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 5, "Keypoints B");
+  }
 }
 
 void color_correct(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
