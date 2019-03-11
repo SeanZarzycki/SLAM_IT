@@ -33,6 +33,8 @@ add_definitions(${PCL_DEFINITIONS})
 
 
 
+add_executable(data_convert ${PROJECT_SOURCE_DIR}/src/Data_Converter.cpp )
+target_link_libraries(data_convert ${PCL_LIBRARIES})
 
 add_executable(view_example3 ${PROJECT_SOURCE_DIR}/src/main3.cpp )
 target_link_libraries(view_example3 ${PCL_LIBRARIES})
@@ -40,16 +42,13 @@ target_link_libraries(view_example3 ${PCL_LIBRARIES})
 add_executable (statistical_removal ${PROJECT_SOURCE_DIR}/src/outlier3.cpp)
 target_link_libraries (statistical_removal ${PCL_LIBRARIES})
 
-add_executable (triangle3 ${PROJECT_SOURCE_DIR}/src/triangle3.cpp)
-target_link_libraries (triangle3 ${PCL_LIBRARIES})
-
 add_executable (fuse ${PROJECT_SOURCE_DIR}/src/Fuse.cpp)
 target_link_libraries (fuse ${PCL_LIBRARIES})
 
 add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)
 target_link_libraries (calib ${OpenCV_LIBS})
 
-add_executable(data_convert ${PROJECT_SOURCE_DIR}/src/Data_Converter.cpp )
-target_link_libraries(data_convert ${PCL_LIBRARIES})
+add_executable(demo ${PROJECT_SOURCE_DIR}/src/Demo.cpp )
+target_link_libraries(demo ${PCL_LIBRARIES})
 
 
