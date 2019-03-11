@@ -13,7 +13,7 @@
 using namespace std;
 
 string head;
-int dens, cc;
+int dens, cc, allp;
 float dl, dh;
 
 class Frame
@@ -154,9 +154,8 @@ void color_correct(std::vector<CustPoint> cloud, std::string file)
         pcd->points[i].g = cloud[i].g();
         pcd->points[i].b = cloud[i].b();
     }
-
-    pcl::PCDWriter writer;
-    writer.write<pcl::PointXYZRGB> (file, *pcd, false);
+    
+    pcl::io::savePCDFileBinary<pcl::PointXYZRGB> (file, *pcd);
 }
 
 void parseArgument(const char* arg)
@@ -192,6 +191,12 @@ void parseArgument(const char* arg)
         cc = option;
 		return;
 	}
+	if(1==sscanf(arg,"all=%d",&option))
+	{
+        if(option >= 0 && option <= 1)
+            allp = option;
+		return;
+	}
 
 
 	if(strcmp(arg, "-h") != 0 && strcmp(arg, "--help"))
@@ -199,9 +204,11 @@ void parseArgument(const char* arg)
     
     cout << "Help:\n"
          << "name=\"...\" is the input name for the two text files to be converted\n..._points.txt and ..._frames.txt must both exist for the conversion to work\nCan also include location if not in current folder\n\n"
-         << "dens=0 is the default which will use the centers as locations for each point in the cloud, using the mean color\ndens=1 adds some randomness to better fill out the space. Each point becomes 8 points with some added noise based on its variance and depth"
-		 << "dl is the minimum acceptable depth.  Any points with lower depth will be removed.  Default is 0."
-		 << "dh is the maximum acceptable depth.  Any points with higher depth will be removed.  Default is Inf.\n\n";
+         << "dens=0 is the default which will use the centers as locations for each point in the cloud, using the mean color\ndens=1 adds some randomness to better fill out the space. Each point becomes 8 points with some added noise based on its variance and depth\n"
+		 << "dl is the minimum acceptable depth.  Any points with lower depth will be removed.  Default is 0.\n"
+		 << "dh is the maximum acceptable depth.  Any points with higher depth will be removed.  Default is Inf.\n"
+		 << "all=0 is the default which will only keep the most up to date points in the results\n"
+		 << "all=1 keeps every point that is in the points file\n\n";
 }
 
 
@@ -211,6 +218,7 @@ int main( int argc, char** argv )
 	dh = numeric_limits<float>::infinity();
     dens = 0;
 	cc = 1;
+	allp = 0;
 	for(int i=1; i<argc;i++)
 		parseArgument(argv[i]);
 	if(argc == 1)
@@ -269,6 +277,7 @@ int main( int argc, char** argv )
 
 		// Parse Points
         int max_id = 0;
+		int count = 0;
 		{
 			vector<CustPoint> tmp_pt;
 			while (getline(pts_file, line))
@@ -280,6 +289,7 @@ int main( int argc, char** argv )
 
 				tmp_pt.push_back(pt);
 			}
+			count = tmp_pt.size();
 			pts_file.close();
 			cout << "Reorganizing Points\n";
 			pts.resize(max_id + 1);
@@ -313,8 +323,11 @@ int main( int argc, char** argv )
 		else
 			for(size_t i = 0;i < pts.size();i++)
 				if(pts[i].size() > 0)
-					cloud.push_back(pts[i].back());
-        
+					if(allp == 0)
+						cloud.push_back(pts[i].back());
+					else
+						for(size_t j = 0;j < pts[i].size();j++)
+							cloud.push_back(pts[i][j]);        
         
 		cout << "Points completed\nTransforming Points to World Coordinates\n";
         
