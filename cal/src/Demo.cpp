@@ -17,7 +17,7 @@
 
 float sz = 2;
 int anim_frames;
-bool key_show, col_diff, anim;
+bool key_show, col_diff, anim, save_on;
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 pcl::PointCloud<pcl::PointXYZ>::Ptr m1 (new pcl::PointCloud<pcl::PointXYZ>);
@@ -137,7 +137,8 @@ void mouseEventOccurred (const pcl::visualization::MouseEvent &event, void* view
 
 void save_frame(int ct)
 {
-    viewer->saveScreenshot("/home/steve/repos/SLAM_IT/cal/dat/results/img" + num2str(ct, 5) + ".png");
+    if(save_on)
+        viewer->saveScreenshot("/home/steve/repos/SLAM_IT/cal/dat/results/img" + num2str(ct, 5) + ".png");
 }
 
 
@@ -147,6 +148,7 @@ void save_frame(int ct)
 // --------------
 int main (int argc, char** argv)
 {
+  save_on = false;
   key_show = false;
   col_diff = false;
   anim = false;
@@ -170,6 +172,11 @@ int main (int argc, char** argv)
   {
     col_diff = true;
     std::cout << "Color Difference Enabled\n";
+  }
+  if (pcl::console::find_argument (argc, argv, "-s") >= 0)
+  {
+    save_on = true;
+    std::cout << "Saving animation frames\n";
   }
   if (pcl::console::find_argument (argc, argv, "-k") >= 0)
   {
