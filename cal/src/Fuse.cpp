@@ -35,9 +35,9 @@ int main(int argc, char** argv)
       i++;
   }
   if(file1.empty())
-      file1 = "table1_c.pcd";
+      file1 = "table1.pcd";
   if(file2.empty())
-      file2 = "table2_c.pcd";
+      file2 = "table2.pcd";
 
 
   // load point clouds
@@ -240,6 +240,9 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
     viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 5, "Keypoints A");
     viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 5, "Keypoints B");
   }
+
+  //viewer.saveScreenshot("~/data/results/img1.png");
+  //viewer.saveScreenshot("../dat/results/img1.png");
 }
 
 void color_correct(pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud)
