@@ -8,7 +8,9 @@
 
 #include <pcl/common/centroid.h>
 #include <pcl/common/transforms.h>
-#include <pcl/keypoints/sift_keypoint.h>
+//#include <pcl/keypoints/sift_keypoint.h>
+
+#include "sift_keypoint.h"
 
 #include <cmath>
 #include <string>
@@ -50,7 +52,7 @@ int main(int argc, char** argv)
 
   //color_correct(cloud1);
   //color_correct(cloud2);
-
+/*
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud3 (new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr m3 (new pcl::PointCloud<pcl::PointXYZ>);
 
@@ -90,7 +92,7 @@ int main(int argc, char** argv)
   std::cout << icp.getFinalTransformation() << std::endl;
   
   pcl::transformPointCloud (*cloud2, *cloud3, icp.getFinalTransformation());
-
+*/
   /*
   // Normal Dist Transform
   pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
@@ -123,14 +125,14 @@ int main(int argc, char** argv)
   pcl::compute3DCentroid(*cloud2, c2);
   cout << "Cloud A Center: \n" << c1 << "\n\n";
   cout << "Cloud B Center: \n" << c2 << endl;
-/*
+
   pcl::PointCloud<pcl::PointXYZ>::Ptr cloud3 (new pcl::PointCloud<pcl::PointXYZ>);
 
   const float min_scale = 00.1f;
   const int n_octaves = 6;
   const int n_scales_per_octave = 10;
   const float min_contrast = 0.00f;
-  pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
+  pcl2::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
   pcl::PointCloud<pcl::PointWithScale> result;
   pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
   sift.setSearchMethod(tree);
@@ -147,7 +149,7 @@ int main(int argc, char** argv)
   cout << "Copying to cloud\n";;
 
   copyPointCloud(result, *cloud3);
-*/
+
 
   // display clouds
   pcl::visualization::CloudViewer viewer ("Fuse Example");
@@ -155,8 +157,8 @@ int main(int argc, char** argv)
   viewer.showCloud(cloud3, "Cloud B");
   if(keys)
   {
-    viewer.showCloud(m1, "Keypoints A");
-    viewer.showCloud(m3, "Keypoints B");
+    //viewer.showCloud(m1, "Keypoints A");
+    //viewer.showCloud(m3, "Keypoints B");
   }
 	viewer.runOnVisualizationThreadOnce(viewOne);
 	
