@@ -12,14 +12,14 @@ set(EXECUTABLE_OUTPUT_PATH bin)
 set(LIBRARY_OUTPUT_PATH lib)
 set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
+set(DSO_PATH ~/repos/SLAM_IT/vidso/)
+
 # required libraries
-#Dont know what this is needed for: find_package(SuiteParse REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost COMPONENTS system thread) 
 find_package(OpenCV REQUIRED)
+find_library(DSO_LIBRARY dso ${DSO_PATH}/build/lib)
 
-add_library(dso SHARED IMPORTED)
-set_target_properties(dso PROPERTIES IMPORTED_LOCATION "~/repose/SLAM_IT/vidso/build/lib/")
 
 # flags
 add_definitions("-DENABLE_SSE")
@@ -37,14 +37,13 @@ set(slamit_SOURCE_FILES
 
 include_directories(
   ${PROJECT_SOURCE_DIR}/src
+  ${DSO_PATH}/src
+  ${DSO_PATH}/thirdparty/Sophus
   ${EIGEN3_INCLUDE_DIR}
+  ${OpenCV_INCLUDE_DIRS}
 ) 
 
 
-
-
-include_directories( ${OpenCV_INCLUDE_DIRS} ${CSPARSE_INCLUDE_DIR} ${CHOLMOD_INCLUDE_DIR}) 
-set(BOOST_THREAD_LIBRARY boost_thread)
 
 
 add_library(helper ${slamit_SOURCE_FILES})
@@ -58,5 +57,5 @@ target_link_libraries(encode helper)
 # build main executable 
 message("--- compiling SLAM_IT.")
 add_executable(slam_it ${PROJECT_SOURCE_DIR}/src/main.cpp )
-target_link_libraries(slam_it helper ${DSO_LIBRARY} boost_system cxsparse ${BOOST_THREAD_LIBRARY} ${OpenCV_LIBS})
+target_link_libraries(slam_it helper boost_thread boost_system ${DSO_LIBRARY} ${OpenCV_LIBS})
 
