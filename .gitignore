@@ -7,9 +7,13 @@
 *.o
 *.obj
 
+# build files
 cal/build*
-cal/dat/results*
 vidso/build*
+slam_it/build*
+
+# data
+cal/dat/results*
 
 # Precompiled Headers
 *.gch
