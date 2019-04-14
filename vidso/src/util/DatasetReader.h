@@ -184,6 +184,11 @@ public:
 		return  undistort->getOriginalSize();
 	}
 
+	void reloadDir()
+	{
+		getdir (path, files);
+	}
+
 	void getCalibMono(Eigen::Matrix3f &K, int &w, int &h)
 	{
 		K = undistort->getK().cast<float>();
