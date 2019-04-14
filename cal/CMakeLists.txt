@@ -31,8 +31,6 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
-add_library(pcl2 ${PROJECT_SOURCE_DIR}/src/sift_keypoint.cpp)
-
 
 
 add_executable(data_convert ${PROJECT_SOURCE_DIR}/src/Data_Converter.cpp )
@@ -45,7 +43,7 @@ add_executable (statistical_removal ${PROJECT_SOURCE_DIR}/src/outlier3.cpp)
 target_link_libraries (statistical_removal ${PCL_LIBRARIES})
 
 add_executable (fuse ${PROJECT_SOURCE_DIR}/src/Fuse.cpp)
-target_link_libraries (fuse pcl2 ${PCL_LIBRARIES})
+target_link_libraries (fuse ${PCL_LIBRARIES})
 
 add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)
 target_link_libraries (calib ${OpenCV_LIBS})
