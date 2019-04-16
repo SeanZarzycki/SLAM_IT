@@ -48,7 +48,7 @@ typedef pcl::PointCloud<pcl::FPFHSignature33> FeatureSpace;
 
 string file1, file2;
 int scan_val;
-bool col_diff, keys, key_sphere, c_disp, show_filt, show_corr;
+bool col_diff, keys, key_sphere, c_disp, show_filt, show_corr, trans;
 
 int parseArgument(char*);
 void viewOne (pcl::visualization::PCLVisualizer&);
@@ -150,9 +150,6 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
 }
 Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>::Ptr &ms, pcl::PointCloud<pcl::PointWithScale>::Ptr &md, FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd)
 {
-  // Resize
-  //corr->resize (fs->size ());
-
   pcl::KdTreeFLANN<pcl::FPFHSignature33> descriptor_kdtree;
   descriptor_kdtree.setInputCloud (fd);
 
@@ -168,6 +165,50 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>:
       corr->push_back(ct);
     }
   }
+
+  // eliminate multi matches
+  vector<bool> ck1, ck2, ck3;
+  ck1.resize(md->size());
+  ck2.resize(md->size());
+  ck3.resize(corr->size());
+  for(size_t i = 0;i < corr->size();i++)
+  {
+    int ind = corr->at(i).index_query;
+    if(ind < md->size())
+      if(ck1[ind])
+        ck2[ind] = true;
+      else
+        ck1[ind] = true;
+    else
+      ck3[i] = true;
+  }
+  pcl::CorrespondencesPtr temp (new pcl::Correspondences);
+  for(size_t i = 0;i < corr->size();i++)
+  {
+    if(!ck3[i])
+    {
+      ck3[i] = true;
+      if(!ck2[corr->at(i).index_query])
+        temp->push_back(corr->at(i));
+      else
+      {
+        float max = corr->at(i).distance;
+        int ti = i;
+        for(size_t j = i+1;j < corr->size();j++)
+          if(corr->at(i).index_query == corr->at(j).index_query)
+          {
+            ck3[j] = true;
+            if(corr->at(j).distance > max)
+            {
+              max = corr->at(j).distance;
+              ti = j;
+            }
+          }
+        temp->push_back(corr->at(ti));
+      }
+    }
+  }
+  corr = temp;
   /*
   vector<float> temp (cscore);
   sort(temp.begin(), temp.end());
@@ -251,6 +292,7 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>:
 
 int main(int argc, char** argv)
 {
+  trans = true;
   show_corr = false;
   show_filt = false;
   c_disp = false;
@@ -264,7 +306,7 @@ int main(int argc, char** argv)
       i++;
   }
   if(file1.empty())
-      file1 = "table1.pcd";
+      file1 = "table2.pcd";
   if(file2.empty())
       file2 = "table2.pcd";
 
@@ -350,6 +392,19 @@ int main(int argc, char** argv)
   cout << "Cloud A Center: \n" << c1 << "\n\n";
   cout << "Cloud B Center: \n" << c2 << endl;
 */
+  Eigen::Matrix4f randtr;
+  randtr(0, 0) = 0.866025;randtr(0, 1) = 0.5;       randtr(0, 2) = 0; randtr(0, 3) = 0;
+  randtr(1, 0) = 0.5;     randtr(1, 1) = -0.866025; randtr(1, 2) = 0; randtr(1, 3) = 0;
+  randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
+  randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;
+
+  randtr(0, 0) = 1;       randtr(0, 1) = 0;         randtr(0, 2) = 0; randtr(0, 3) = 10*extr_dres;
+  randtr(1, 0) = 0;       randtr(1, 1) = 1;         randtr(1, 2) = 0; randtr(1, 3) = 0;
+  randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
+  randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;
+
+  pcl::transformPointCloud (*cloud2, *cloud2, randtr);
+  
 
 
 
@@ -367,9 +422,22 @@ int main(int argc, char** argv)
   Eigen::Matrix<float, 4, 4> s2d;
   s2d = register_clouds(keys2, keys1, feats2, feats1);
 
-
-  pcl::transformPointCloud (*cloud2, *cloud2, s2d);
-  pcl::transformPointCloud (*keys2, *keys2, s2d);
+/*
+  if(c_disp)
+  {
+    cout << "Matches:\n";
+    for(size_t i = 0;i < corr->size();i++)
+      cout << " " << i << "," << corr->at(i).index_match << "," << corr->at(i).index_query << "\n";
+    cout << "Refined Matches:\n";
+    for(size_t i = 0;i < inlie->size();i++)
+      cout << " " << i << "," << inlie->at(i).index_match << "," << inlie->at(i).index_query << "\n";
+  }
+*/
+  if(trans)
+  {
+    pcl::transformPointCloud (*cloud2, *cloud2, s2d);
+    pcl::transformPointCloud (*keys2, *keys2, s2d);
+  }
 
   // display clouds
   pcl::visualization::CloudViewer viewer ("Fuse Example");
@@ -446,6 +514,11 @@ int parseArgument(char* arg)
         show_corr = !show_corr;
         return 0;
       }
+      if(strcmp(buf, "t") == 0 || strcmp(buf, "-transform") == 0)
+      {
+        trans = !trans;
+        return 0;
+      }
     }
 
     if(file1.empty())
@@ -498,11 +571,13 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
   }
   if(show_corr)
   {
-    for (size_t i = 0; i < keys1->size (); ++i)
+    for (size_t i = 0; i < inlie->size (); ++i)
     {
       // Get the pair of points
-      const pcl::PointWithScale & p_left = keys1->points[inlie->at(i).index_match];
-      const pcl::PointWithScale & p_right = keys2->points[inlie->at(i).index_query];
+      //const pcl::PointWithScale & p_left = keys1->points[inlie->at(i).index_match;
+      //const pcl::PointWithScale & p_right = keys2->points[inlie->at(i).index_query];
+      const pcl::PointWithScale & p_left = keys1->points[inlie->at(i).index_query];
+      const pcl::PointWithScale & p_right = keys2->points[inlie->at(i).index_match];
 
       // Generate a random (bright) color
       double r = (rand() % 100);
