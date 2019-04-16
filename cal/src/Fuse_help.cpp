@@ -22,3 +22,14 @@ float norm_r = 0.02f;
 
 /* Feature Calculation */
 float feat_r = 0.06f;
+
+/* Correlation */
+float corr_v = 1;
+
+
+
+/* Extra Parameters */
+// downsample point cloud 2
+bool extr_down = true;
+// downsample res
+float extr_dres = 0.01f;
