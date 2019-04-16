@@ -3,13 +3,13 @@
 // filter type: 1 for radius, 2 for stat
 int filt_type = 2;
 // NUmber of neighbors required
-int filt_N = 100;
+int filt_N = 30;
 // search radius
 float filt_R = 0.05f;
 
 /* SIFT Detection */
 // min scale
-float sift_ms = 0.04f;
+float sift_ms = 0.04f;//0.04f;
 // number of octaves
 int sift_no = 6;
 // scales per octave
@@ -18,14 +18,18 @@ int sift_ns = 10;
 int sift_mc = 0.0001f;
 
 /* Normals Calculation */
-float norm_r = 0.02f;
+float norm_r = 0.03;//0.023;
 
 /* Feature Calculation */
 float feat_r = 0.06f;
 
 /* Correlation */
-float corr_v = 1;
-
+// percentile (ie 0.5 is median)
+float corr_v = 0.9;
+// alignment epsilon
+float corr_eps = 01;
+// alignment max iterations
+int corr_n = 10;
 
 
 /* Extra Parameters */
