@@ -9,9 +9,9 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/io.h>
 
-#include <pcl/filters/voxel_grid.h>
 
 // fusion requirements
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/keypoints/sift_keypoint.h>
@@ -20,7 +20,7 @@
 #include <pcl/correspondence.h>
 #include "pcl/kdtree/kdtree_flann.h"
 #include <pcl/common/transforms.h>
-#include <pcl/registration/icp.h>
+#include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
 
 
@@ -37,6 +37,8 @@ extern float feat_r;
 extern float corr_v;
 extern bool extr_down;
 extern float extr_dres;
+extern float corr_eps;
+extern int corr_n;
 
 
 using namespace std;
@@ -46,11 +48,21 @@ typedef pcl::PointCloud<pcl::FPFHSignature33> FeatureSpace;
 
 string file1, file2;
 int scan_val;
-bool col_diff, keys, key_sphere, c_disp, show_filt;
+bool col_diff, keys, key_sphere, c_disp, show_filt, show_corr;
 
 int parseArgument(char*);
 void viewOne (pcl::visualization::PCLVisualizer&);
 void color_correct(pcl::PointCloud<pcl::PointXYZRGB>::Ptr);
+
+// clouds
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
+pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
+pcl::PointCloud<pcl::PointWithScale>::Ptr keys1 (new pcl::PointCloud<pcl::PointWithScale>);
+pcl::PointCloud<pcl::PointWithScale>::Ptr keys2 (new pcl::PointCloud<pcl::PointWithScale>);
+FeatureSpace::Ptr feats1 (new FeatureSpace);
+FeatureSpace::Ptr feats2 (new FeatureSpace);
+pcl::CorrespondencesPtr inlie (new pcl::Correspondences);
+pcl::CorrespondencesPtr corr (new pcl::Correspondences);
 
 
 void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<pcl::PointWithScale>::Ptr &keys, FeatureSpace::Ptr &feats)
@@ -84,6 +96,14 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   else
   {
     copyPointCloud(*cloud, *filt);
+  }
+  // downsample for testing
+  if(extr_down)
+  {
+    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+    sor.setInputCloud (filt);
+    sor.setLeafSize (extr_dres, extr_dres, extr_dres);
+    sor.filter (*filt);
   }
   
   // SIFT detection
@@ -128,16 +148,11 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   if(show_filt)
     copyPointCloud(*filt, *cloud);
 }
-void correlate_keypoints(pcl::PointCloud<pcl::PointWithScale>::Ptr &ms, pcl::PointCloud<pcl::PointWithScale>::Ptr &md, FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd)
+Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>::Ptr &ms, pcl::PointCloud<pcl::PointWithScale>::Ptr &md, FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd)
 {
-  // correlation vector
-  vector<int> corr;
-  vector<float> cscore;
   // Resize
-  corr.resize (fs->size ());
-  cscore.resize (fs->size ());
+  //corr->resize (fs->size ());
 
-  pcl::CorrespondencesPtr model_scene_corrs (new pcl::Correspondences ());
   pcl::KdTreeFLANN<pcl::FPFHSignature33> descriptor_kdtree;
   descriptor_kdtree.setInputCloud (fd);
 
@@ -146,32 +161,48 @@ void correlate_keypoints(pcl::PointCloud<pcl::PointWithScale>::Ptr &ms, pcl::Poi
   std::vector<float> k_squared_distances (k);
   for (size_t i = 0; i < fs->size (); ++i)
   {
-    descriptor_kdtree.nearestKSearch (*fs, i, k, k_indices, k_squared_distances);
-    corr[i] = k_indices[0];
-    cscore[i] = k_squared_distances[0];
+    int found = descriptor_kdtree.nearestKSearch (fs->at(i), k, k_indices, k_squared_distances);
+    if(found == 1)
+    {
+      pcl::Correspondence ct (k_indices[0], static_cast<int> (i), k_squared_distances[0]);
+      corr->push_back(ct);
+    }
   }
-
-  float sm = 0;
-  for(size_t i = 0;i < cscore.size();i++)
-    sm += cscore[i];
-  sm /= corr_v * cscore.size();
+  /*
+  vector<float> temp (cscore);
+  sort(temp.begin(), temp.end());
+  float sm = temp[(int) (0.5 + corr_v * temp.size())];
   
   pcl::PointCloud<pcl::PointWithScale> mts;
   pcl::PointCloud<pcl::PointWithScale> mtd;
   size_t j = 0;
   for(size_t i = 0;i < cscore.size();i++)
-    if(cscore[i] > sm)
+    if(cscore[i] > sm && corr[i] < (int) md->points.size())
+      j++;
+  mts.resize(j);
+  mtd.resize(j);
+  j = 0;
+  for(size_t i = 0;i < cscore.size();i++)
+    if(cscore[i] > sm && corr[i] < (int) md->points.size())
     {
-      mts.points[j] = ms->points[i];
-      mtd.points[j] = md->points[corr[i]];
+      mts.points.push_back(ms->points[i]);
+
+      mtd.points.push_back(md->points[corr[i]]);
+
       j++;
     }
+
+    */
   
-  copyPointCloud(mts, *ms);
-  copyPointCloud(mtd, *md);
-}
-Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>::Ptr &ms, pcl::PointCloud<pcl::PointWithScale>::Ptr &md)
-{
+  if(c_disp)
+    cout << "Initial Matches: " << corr->size() << endl;
+    
+
+
+
+
+
+
   // rescale clouds
   float scs = 0; // ms scale measurement
   for(size_t i = 0;i < ms->points.size()-1;i++)
@@ -183,18 +214,35 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>:
       scd += std::sqrt(std::pow(md->points[i].x - md->points[j].x, 2) + std::pow(md->points[i].y - md->points[j].y, 2) + std::pow(md->points[i].z - md->points[j].z, 2));
   // normalize
   Eigen::Affine3f rs = Eigen::Affine3f::Identity();
-  rs.scale(scd / scs);
+  float scale = scd * ms->points.size() * ms->points.size() / (scs * md->points.size() * md->points.size());
+  rs.scale(scale);
 
   // rescale source
-  pcl::transformPointCloud (*ms, *ms, rs);
-
   pcl::PointCloud<pcl::PointWithScale>::Ptr mt (new pcl::PointCloud<pcl::PointWithScale>);
+  pcl::transformPointCloud (*ms, *mt, rs);
+
+  // find transformation
+  /*
   pcl::IterativeClosestPoint<pcl::PointWithScale, pcl::PointWithScale> icp;
-  icp.setInputSource(ms);
+  icp.setInputSource(mt);
   icp.setInputTarget(md);
   icp.align(*mt);
-
   return scd * icp.getFinalTransformation() / scs;
+  */
+  pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointWithScale> sac;
+  sac.setInputSource(mt);
+  sac.setInputTarget(md);
+  sac.setInlierThreshold(corr_eps);
+  sac.setMaximumIterations(corr_n);
+  sac.setInputCorrespondences(corr);
+  sac.getRemainingCorrespondences(*corr, *inlie);
+  Eigen::Matrix4f tr = sac.getBestTransformation();
+  tr = tr * rs.matrix();
+
+  if(c_disp)
+    cout << "Matches: " << inlie->size() << "\nTransform:\n" << tr << "\n";
+
+  return tr;
 }
 
 
@@ -203,6 +251,7 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>:
 
 int main(int argc, char** argv)
 {
+  show_corr = false;
   show_filt = false;
   c_disp = false;
   col_diff = false;
@@ -221,21 +270,9 @@ int main(int argc, char** argv)
 
 
   // load point clouds
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
   pcl::PCDReader reader;
   reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file1, *cloud1);
   reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file2, *cloud2);
-
-
-  // downsample for testing
-  if(extr_down)
-  {
-    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-    sor.setInputCloud (cloud2);
-    sor.setLeafSize (extr_dres, extr_dres, extr_dres);
-    sor.filter (*cloud2);
-  }
 
   //color_correct(cloud1);
   //color_correct(cloud2);
@@ -314,26 +351,22 @@ int main(int argc, char** argv)
   cout << "Cloud B Center: \n" << c2 << endl;
 */
 
+
+
+
   if(c_disp)
     cout << "Cloud 1\n";
-  pcl::PointCloud<pcl::PointWithScale>::Ptr keys1 (new pcl::PointCloud<pcl::PointWithScale>);
-  FeatureSpace::Ptr feats1 (new FeatureSpace);
   key_detect(cloud1, keys1, feats1);
 
   if(c_disp)
     cout << "\nCloud 2\n";
-  pcl::PointCloud<pcl::PointWithScale>::Ptr keys2 (new pcl::PointCloud<pcl::PointWithScale>);
-  FeatureSpace::Ptr feats2 (new FeatureSpace);
   key_detect(cloud2, keys2, feats2);
 
   if(c_disp)
-    cout << "\nCorrelate Clouds\n";
-  correlate_keypoints(keys2, keys1, feats2, feats1);
-
-  if(c_disp)
-    cout << "\nCompute Transform\n";
+    cout << "\nRegister Clouds\n";
   Eigen::Matrix<float, 4, 4> s2d;
-  s2d = register_clouds(keys2, keys1);
+  s2d = register_clouds(keys2, keys1, feats2, feats1);
+
 
   pcl::transformPointCloud (*cloud2, *cloud2, s2d);
   pcl::transformPointCloud (*keys2, *keys2, s2d);
@@ -408,6 +441,11 @@ int parseArgument(char* arg)
         show_filt = !show_filt;
         return 0;
       }
+      if(strcmp(buf, "l") == 0 || strcmp(buf, "-lines") == 0)
+      {
+        show_corr = !show_corr;
+        return 0;
+      }
     }
 
     if(file1.empty())
@@ -436,7 +474,7 @@ int parseArgument(char* arg)
 void viewOne (pcl::visualization::PCLVisualizer& viewer)
 {
   viewer.setCameraPosition(-0.118567, -0.0371279, -0.194652, -0.0633438, 0.00920603, 0.453505, 0.0395004, -0.860972, -0.507116);
-/*
+
   if(key_sphere)
   {
     // Draw each keypoint as a sphere
@@ -457,7 +495,32 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
       // Add a sphere at the keypoint
       viewer.addSphere (p, r, 0.0, 1.0, 1.0, ss.str ());
     }
-  }*/
+  }
+  if(show_corr)
+  {
+    for (size_t i = 0; i < keys1->size (); ++i)
+    {
+      // Get the pair of points
+      const pcl::PointWithScale & p_left = keys1->points[inlie->at(i).index_match];
+      const pcl::PointWithScale & p_right = keys2->points[inlie->at(i).index_query];
+
+      // Generate a random (bright) color
+      double r = (rand() % 100);
+      double g = (rand() % 100);
+      double b = (rand() % 100);
+      double max_channel = std::max (r, std::max (g, b));
+      r /= max_channel;
+      g /= max_channel;
+      b /= max_channel;
+
+      // Generate a unique string for each line
+      std::stringstream ss ("line");
+      ss << i;
+
+      // Draw the line
+      viewer.addLine (p_left, p_right, r, g, b, ss.str ());
+    }
+  }
 
   if(col_diff)
   {
