@@ -20,10 +20,10 @@ int sift_ns = 10;
 int sift_mc = 0.0001f;
 
 /* Normals Calculation */
-float norm_r = 0.05;//0.023;
+float norm_r = 0.1;//0.023;
 
 /* Feature Calculation */
-float feat_r = 0.1f;//0.06
+float feat_r = 0.2f;//0.06
 
 /* Correlation */
 // percentile (ie 0.5 is median)
@@ -36,6 +36,8 @@ int corr_n = 10;
 
 /* Extra Parameters */
 // downsample point cloud 2
-bool extr_down = false;
+bool extr_down = true;
 // downsample res
 float extr_dres = 0.01f;
+// normal display length
+float extr_nsz = 0.01;
