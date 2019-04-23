@@ -7,7 +7,7 @@ int filt_type = 2;
 // NUmber of neighbors required
 int filt_N = 30;//30
 // search radius
-float filt_R = 0.08f;//0.05
+float filt_R = 0.08f;//0.08
 
 /* SIFT Detection */
 // min scale
@@ -20,16 +20,16 @@ int sift_ns = 10;
 int sift_mc = 0.0001f;
 
 /* Normals Calculation */
-float norm_r = 0.1;//0.023;
+float norm_r = 0.075;//0.023;k
 
 /* Feature Calculation */
-float feat_r = 0.2f;//0.06
+float feat_r = 0.1f;//0.06
 
 /* Correlation */
 // percentile (ie 0.5 is median)
 float corr_v = 0.9;
 // alignment epsilon
-float corr_eps = 0.1;
+float corr_eps = 0.5;
 // alignment max iterations
 int corr_n = 10;
 
@@ -41,3 +41,5 @@ bool extr_down = true;
 float extr_dres = 0.01f;
 // normal display length
 float extr_nsz = 0.01;
+// keypoint sphere size
+float extr_mksz = 0.01;
