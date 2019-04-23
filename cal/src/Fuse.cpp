@@ -9,19 +9,17 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/io.h>
 
-
 // fusion requirements
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/keypoints/sift_keypoint.h>
-#include "pcl/features/normal_3d.h"
-#include "pcl/features/fpfh.h"
+#include "edge_det.h"
+#include <pcl/features/fpfh.h>
 #include <pcl/correspondence.h>
-#include "pcl/kdtree/kdtree_flann.h"
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/transforms.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
-
 
 
 // constant values for testing
@@ -40,7 +38,7 @@ extern float extr_dres;
 extern float extr_nsz;
 extern float corr_eps;
 extern int corr_n;
-
+extern float extr_mksz;
 
 using namespace std;
 
@@ -120,11 +118,14 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
     sift.setMinimumContrast(sift_mc);
     sift.setInputCloud(filt);
     sift.compute(*keys);
+
+    // filter out small sift results
   }
 
   // get normals
   //pcl::PointCloud<pcl::Normal>::Ptr norms (new pcl::PointCloud<pcl::Normal>);
-  pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
+  //pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
+  fuse::EdgeDetection norm_est;
   norm_est.setInputCloud (filt); // possibly use raw cloud
   pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree2 (new pcl::search::KdTree<pcl::PointXYZRGB> ());
   norm_est.setSearchMethod (tree2);
@@ -293,6 +294,10 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>:
 }
 
 
+void printSettings()
+{
+
+}
 
 
 
@@ -318,11 +323,12 @@ int main(int argc, char** argv)
   if(file2.empty())
       file2 = "table2.pcd";
 
+  printSettings();
 
   // load point clouds
   pcl::PCDReader reader;
-  reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file1, *cloud1);
-  reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file2, *cloud2);
+  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + file1, *cloud1);
+  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + file2, *cloud2);
 
 
   //color_correct(cloud1);
@@ -597,11 +603,28 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
       //   radius of 2*p.scale is a good illustration of the extent of the keypoint
 
       // Generate a unique string for each sphere
-      std::stringstream ss ("keypoint");
+      std::stringstream ss ("keypointA");
       ss << i;
 
       // Add a sphere at the keypoint
       viewer.addSphere (p, r, 0.0, 1.0, 1.0, ss.str ());
+    }
+    for (size_t i = 0; i < keys2->size (); ++i)
+    {
+      // Get the point data
+      const pcl::PointWithScale & p = keys2->points[i];
+
+      // Pick the radius of the sphere *
+      float r = 0.1 * p.scale;
+      // * Note: the scale is given as the standard deviation of a Gaussian blur, so a
+      //   radius of 2*p.scale is a good illustration of the extent of the keypoint
+
+      // Generate a unique string for each sphere
+      std::stringstream ss ("keypointB");
+      ss << i;
+
+      // Add a sphere at the keypoint
+      viewer.addSphere (p, r, 1.0, 1.0, 0.0, ss.str ());
     }
   }
   if(show_corr)
@@ -629,6 +652,15 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
 
       // Draw the line
       viewer.addLine (p_left, p_right, r, g, b, ss.str ());
+      if(!key_sphere && !keys)
+      {
+        std::stringstream ss2 ("keypointA");
+        ss2 << i;
+        viewer.addSphere (p_left, extr_mksz, 1.0, 1.0, 0.0, ss2.str ());
+        std::stringstream ss3 ("keypointB");
+        ss3 << i;
+        viewer.addSphere (p_right, extr_mksz, 0.0, 1.0, 1.0, ss3.str ());
+      }
     }
   }
 
@@ -636,6 +668,11 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
   {
 	  viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 0.2, 0.2, "Cloud A");
     viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.2, 0.2, 1, "Cloud B");
+    if(normals)
+    {
+      viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.7, 0.35, 0.35, "Normals A");
+      viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.35, 0.35, 0.7, "Normals B");
+    }
   }
   if(keys)
   {
