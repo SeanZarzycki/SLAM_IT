@@ -9,19 +9,17 @@
 #include <pcl/visualization/cloud_viewer.h>
 #include <pcl/io/io.h>
 
-
 // fusion requirements
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/keypoints/sift_keypoint.h>
-#include "pcl/features/normal_3d.h"
-#include "pcl/features/fpfh.h"
+#include "edge_det.h"
+#include <pcl/features/fpfh.h>
 #include <pcl/correspondence.h>
-#include "pcl/kdtree/kdtree_flann.h"
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/transforms.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
-
 
 
 // constant values for testing
@@ -37,9 +35,10 @@ extern float feat_r;
 extern float corr_v;
 extern bool extr_down;
 extern float extr_dres;
+extern float extr_nsz;
 extern float corr_eps;
 extern int corr_n;
-
+extern float extr_mksz;
 
 using namespace std;
 
@@ -48,7 +47,7 @@ typedef pcl::PointCloud<pcl::FPFHSignature33> FeatureSpace;
 
 string file1, file2;
 int scan_val;
-bool col_diff, keys, key_sphere, c_disp, show_filt, show_corr, trans;
+bool col_diff, keys, key_sphere, c_disp, show_filt, show_corr, trans, ext_points, normals;
 
 int parseArgument(char*);
 void viewOne (pcl::visualization::PCLVisualizer&);
@@ -59,13 +58,15 @@ pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZ
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
 pcl::PointCloud<pcl::PointWithScale>::Ptr keys1 (new pcl::PointCloud<pcl::PointWithScale>);
 pcl::PointCloud<pcl::PointWithScale>::Ptr keys2 (new pcl::PointCloud<pcl::PointWithScale>);
+pcl::PointCloud<pcl::Normal>::Ptr norms1 (new pcl::PointCloud<pcl::Normal>);
+pcl::PointCloud<pcl::Normal>::Ptr norms2 (new pcl::PointCloud<pcl::Normal>);
 FeatureSpace::Ptr feats1 (new FeatureSpace);
 FeatureSpace::Ptr feats2 (new FeatureSpace);
 pcl::CorrespondencesPtr inlie (new pcl::Correspondences);
 pcl::CorrespondencesPtr corr (new pcl::Correspondences);
 
 
-void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<pcl::PointWithScale>::Ptr &keys, FeatureSpace::Ptr &feats)
+void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<pcl::PointWithScale>::Ptr &keys, pcl::PointCloud<pcl::Normal>::Ptr &norms, FeatureSpace::Ptr &feats)
 {
   string filt_name = "";
   // Preprocess filtering
@@ -107,18 +108,24 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   }
   
   // SIFT detection
-  pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
-  pcl::PointCloud<pcl::PointWithScale> result;
-  pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
-  sift.setSearchMethod(tree);
-  sift.setScales(sift_ms, sift_no, sift_ns);
-  sift.setMinimumContrast(sift_mc);
-  sift.setInputCloud(filt);
-  sift.compute(*keys);
+  if(!ext_points)
+  {
+    pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
+    pcl::PointCloud<pcl::PointWithScale> result;
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
+    sift.setSearchMethod(tree);
+    sift.setScales(sift_ms, sift_no, sift_ns);
+    sift.setMinimumContrast(sift_mc);
+    sift.setInputCloud(filt);
+    sift.compute(*keys);
+
+    // filter out small sift results
+  }
 
   // get normals
-  pcl::PointCloud<pcl::Normal>::Ptr norms (new pcl::PointCloud<pcl::Normal>);
-  pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
+  //pcl::PointCloud<pcl::Normal>::Ptr norms (new pcl::PointCloud<pcl::Normal>);
+  //pcl::NormalEstimation<pcl::PointXYZRGB, pcl::Normal> norm_est;
+  fuse::EdgeDetection norm_est;
   norm_est.setInputCloud (filt); // possibly use raw cloud
   pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree2 (new pcl::search::KdTree<pcl::PointXYZRGB> ());
   norm_est.setSearchMethod (tree2);
@@ -287,11 +294,17 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointWithScale>:
 }
 
 
+void printSettings()
+{
+
+}
 
 
 
 int main(int argc, char** argv)
 {
+  normals = false;
+  ext_points = false;
   trans = true;
   show_corr = false;
   show_filt = false;
@@ -310,11 +323,13 @@ int main(int argc, char** argv)
   if(file2.empty())
       file2 = "table2.pcd";
 
+  printSettings();
 
   // load point clouds
   pcl::PCDReader reader;
-  reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file1, *cloud1);
-  reader.read<pcl::PointXYZRGB> ("../dat/filt/" + file2, *cloud2);
+  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + file1, *cloud1);
+  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + file2, *cloud2);
+
 
   //color_correct(cloud1);
   //color_correct(cloud2);
@@ -403,6 +418,16 @@ int main(int argc, char** argv)
   randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
   randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;
 
+  if(ext_points)
+  {
+    pcl::PointCloud<pcl::PointXYZ> temp1;
+    pcl::PointCloud<pcl::PointXYZ> temp2;
+    reader.read<pcl::PointXYZ> ("../dat/match/" + file1, temp1);
+    reader.read<pcl::PointXYZ> ("../dat/match/" + file2, temp2);
+    copyPointCloud(temp1, *keys1);
+    copyPointCloud(temp2, *keys2);
+    pcl::transformPointCloud (*keys2, *keys2, randtr);
+  }
   pcl::transformPointCloud (*cloud2, *cloud2, randtr);
   
 
@@ -411,11 +436,11 @@ int main(int argc, char** argv)
 
   if(c_disp)
     cout << "Cloud 1\n";
-  key_detect(cloud1, keys1, feats1);
+  key_detect(cloud1, keys1, norms1, feats1);
 
   if(c_disp)
     cout << "\nCloud 2\n";
-  key_detect(cloud2, keys2, feats2);
+  key_detect(cloud2, keys2, norms2, feats2);
 
   if(c_disp)
     cout << "\nRegister Clouds\n";
@@ -519,6 +544,16 @@ int parseArgument(char* arg)
         trans = !trans;
         return 0;
       }
+      if(strcmp(buf, "e") == 0 || strcmp(buf, "-external") == 0)
+      {
+        ext_points = !ext_points;
+        return 0;
+      }
+      if(strcmp(buf, "n") == 0 || strcmp(buf, "-normals") == 0)
+      {
+        normals = !normals;
+        return 0;
+      }
     }
 
     if(file1.empty())
@@ -548,6 +583,12 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
 {
   viewer.setCameraPosition(-0.118567, -0.0371279, -0.194652, -0.0633438, 0.00920603, 0.453505, 0.0395004, -0.860972, -0.507116);
 
+  if(normals)
+  {
+    viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud1, norms1, 1, extr_nsz, "Normals A");
+    viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud2, norms2, 1, extr_nsz, "Normals B");
+  }
+
   if(key_sphere)
   {
     // Draw each keypoint as a sphere
@@ -562,11 +603,28 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
       //   radius of 2*p.scale is a good illustration of the extent of the keypoint
 
       // Generate a unique string for each sphere
-      std::stringstream ss ("keypoint");
+      std::stringstream ss ("keypointA");
       ss << i;
 
       // Add a sphere at the keypoint
       viewer.addSphere (p, r, 0.0, 1.0, 1.0, ss.str ());
+    }
+    for (size_t i = 0; i < keys2->size (); ++i)
+    {
+      // Get the point data
+      const pcl::PointWithScale & p = keys2->points[i];
+
+      // Pick the radius of the sphere *
+      float r = 0.1 * p.scale;
+      // * Note: the scale is given as the standard deviation of a Gaussian blur, so a
+      //   radius of 2*p.scale is a good illustration of the extent of the keypoint
+
+      // Generate a unique string for each sphere
+      std::stringstream ss ("keypointB");
+      ss << i;
+
+      // Add a sphere at the keypoint
+      viewer.addSphere (p, r, 1.0, 1.0, 0.0, ss.str ());
     }
   }
   if(show_corr)
@@ -594,6 +652,15 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
 
       // Draw the line
       viewer.addLine (p_left, p_right, r, g, b, ss.str ());
+      if(!key_sphere && !keys)
+      {
+        std::stringstream ss2 ("keypointA");
+        ss2 << i;
+        viewer.addSphere (p_left, extr_mksz, 1.0, 1.0, 0.0, ss2.str ());
+        std::stringstream ss3 ("keypointB");
+        ss3 << i;
+        viewer.addSphere (p_right, extr_mksz, 0.0, 1.0, 1.0, ss3.str ());
+      }
     }
   }
 
@@ -601,6 +668,11 @@ void viewOne (pcl::visualization::PCLVisualizer& viewer)
   {
 	  viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 0.2, 0.2, "Cloud A");
     viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.2, 0.2, 1, "Cloud B");
+    if(normals)
+    {
+      viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.7, 0.35, 0.35, "Normals A");
+      viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.35, 0.35, 0.7, "Normals B");
+    }
   }
   if(keys)
   {
