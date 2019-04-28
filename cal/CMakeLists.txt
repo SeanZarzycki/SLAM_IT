@@ -51,4 +51,5 @@ target_link_libraries (calib ${OpenCV_LIBS})
 add_executable(demo ${PROJECT_SOURCE_DIR}/src/Demo.cpp )
 target_link_libraries(demo ${PCL_LIBRARIES})
 
-
+add_executable(plane_maker ${PROJECT_SOURCE_DIR}/src/plane_maker.cpp )
+target_link_libraries(plane_maker ${PCL_LIBRARIES})
