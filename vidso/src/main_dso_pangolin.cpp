@@ -50,6 +50,8 @@
 #include "IOWrapper/Pangolin/PangolinDSOViewer.h"
 #include "IOWrapper/OutputWrapper/SampleOutputWrapper.h"
 #include "IOWrapper/OutputWrapper/CustomWrapper.h"
+#include "IOWrapper/OutputWrapper/PCLWrapper.h"
+#include <pcl/visualization/cloud_viewer.h>
 
 
 std::string vignette = "";
@@ -67,6 +69,9 @@ float playbackSpeed=0;	// 0 for linearize (play as fast as possible, while seque
 bool preload=false;
 bool useSampleOutput=false;
 bool useStdOutput=false;
+bool usePCLOutput=false;
+bool usePCLView=false;
+bool server=false;
 
 
 int mode=0;
@@ -142,6 +147,38 @@ void settingsDefault(int preset)
 		benchmarkSetting_height = 320;
 
 		setting_logStuff = false;
+	}
+
+	if(preset == 4)
+	{
+		printf("SERVER settings:\n"
+				"- Use newest frame\n"
+				"- 2000 active points\n"
+				"- 5-7 active frames\n"
+				"- 1-6 LM iteration each KF\n"
+				"- original image resolution\n"
+				"PHOTOMETRIC MODE WITHOUT CALIBRATION!\n"
+				"DISABLE LOGGING!\n"
+				"USING PCL WRAPPER!\n");
+
+		playbackSpeed = 0;
+		preload = false;
+		server = true;
+		setting_desiredImmatureDensity = 1500;
+		setting_desiredPointDensity = 2000;
+		setting_minFrames = 5;
+		setting_maxFrames = 7;
+		setting_maxOptIterations=6;
+		setting_minOptIterations=1;
+
+		// ./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=0 quiet=1 nogui=1 nolog=1
+		mode = 1;
+		setting_photometricCalibration = 0;
+		setting_affineOptModeA = 0; //-1: fix. >=0: optimize (with prior, if > 0).
+		setting_affineOptModeB = 0; 
+		usePCLOutput = true;
+		setting_logStuff = false;
+		disableAllDisplay = true;
 	}
 
 	printf("==============================================\n");
@@ -366,6 +403,24 @@ void parseArgument(char* arg)
 		}
 		return;
 	}
+	if(1==sscanf(arg,"pcl=%d",&option))
+	{
+		if(option==1)
+		{
+			usePCLOutput = true;
+			printf("USING PCL WRAPPER!\n");
+		}
+		return;
+	}
+	if(1==sscanf(arg,"pclview=%d",&option))
+	{
+		if(option==1)
+		{
+			usePCLView = true;
+			printf("USING PCL WRAPPER with Display!\n");
+		}
+		return;
+	}
 
 	printf("could not parse argument \"%s\"!!!!\n", arg);
 }
@@ -434,7 +489,21 @@ int main( int argc, char** argv )
         fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
     if(useStdOutput)
         fullSystem->outputWrapper.push_back(new IOWrap::CustomWrapper());
-
+	pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
+	IOWrap::PCLWrapper* pcl_wrap;
+	if(usePCLOutput)
+    {
+		if(usePCLView)
+		{
+			pcl::visualization::PCLVisualizer::Ptr tmp_view (new pcl::visualization::PCLVisualizer("DSO Viewer"));
+			cloud_viewer = tmp_view;
+			pcl_wrap = new IOWrap::PCLWrapper(cloud_viewer);
+		}
+		else
+			pcl_wrap = new IOWrap::PCLWrapper();
+		
+		fullSystem->outputWrapper.push_back(pcl_wrap);
+	}
 
 
 
@@ -587,6 +656,8 @@ int main( int argc, char** argv )
 
     if(viewer != 0)
         viewer->run();
+	if(usePCLView)
+        pcl_run(cloud_viewer, pcl_wrap);
 
     runthread.join();
 
@@ -607,3 +678,5 @@ int main( int argc, char** argv )
 	printf("EXIT NOW!\n");
 	return 0;
 }
+
+
