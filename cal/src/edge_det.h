@@ -1,7 +1,4 @@
 
-#ifndef CUSTOM_EDGE_DET
-#define CUSTOM_EDGE_DET
-
 
 #include <pcl/features/feature.h>
 #include <pcl/common/centroid.h>
@@ -214,5 +211,3 @@ namespace fuse
             EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };
 }
-
-#endif

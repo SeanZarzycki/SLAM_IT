@@ -14,6 +14,7 @@
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
 #include <pcl/keypoints/sift_keypoint.h>
+#include <pcl/filters/extract_indices.h>
 #include "edge_det.h"
 #include <pcl/features/fpfh.h>
 #include <pcl/correspondence.h>
@@ -26,19 +27,24 @@
 extern const int filt_type;
 extern const int filt_N;
 extern const float filt_R;
+extern const int filt_N2;
+extern const float filt_R2;
+extern const int filt_K;
+extern const float filt_T;
 extern const float sift_ms;
 extern const int sift_no;
 extern const int sift_ns;
 extern const int sift_mc;
-extern float norm_r;
-extern float feat_r;
-extern float corr_v;
-extern bool extr_down;
-extern float extr_dres;
-extern float extr_nsz;
-extern float corr_eps;
-extern int corr_n;
-extern float extr_mksz;
+extern const float sift_prct;
+extern const float norm_r;
+extern const float feat_r;
+extern const float corr_v;
+extern const bool extr_down;
+extern const float extr_dres;
+extern const float extr_nsz;
+extern const float corr_eps;
+extern const int corr_n;
+extern const float extr_mksz;
 
 using namespace std;
 
@@ -83,13 +89,13 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
 
     filt_name = "Radius Filter";
   }
-  else if(filt_type == 2)
+  else if(filt_type == 2 || filt_type == 4)
   {
     // Create the filtering object
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
     sor.setInputCloud (cloud);
-    sor.setMeanK (filt_N);
-    sor.setStddevMulThresh (filt_R);
+    sor.setMeanK (filt_K);
+    sor.setStddevMulThresh (filt_T);
     sor.filter (*filt);
 
     filt_name = "Statistical Filter";
@@ -106,8 +112,30 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
     sor.setLeafSize (extr_dres, extr_dres, extr_dres);
     sor.filter (*filt);
   }
+  if(filt_type == 3 || filt_type == 4)
+  {
+    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
+    // build the filter
+    outrem.setInputCloud(filt);
+    outrem.setRadiusSearch(filt_R);
+    outrem.setMinNeighborsInRadius(filt_N);
+    // apply filter
+    outrem.filter (*filt);
+
+    if(filt_type == 4)
+      filt_name = filt_name + "+";
+    filt_name = filt_name + "Radius Filter";
+  }
+  pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
+  // build the filter
+  outrem.setInputCloud(filt);
+  outrem.setRadiusSearch(filt_R2);
+  outrem.setMinNeighborsInRadius(filt_N2);
+  // apply filter
+  outrem.filter (*filt);
   
   // SIFT detection
+  vector<float> sift_vals;
   if(!ext_points)
   {
     pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
@@ -120,6 +148,23 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
     sift.compute(*keys);
 
     // filter out small sift results
+    sift_vals.resize(keys->size());
+    for(size_t j = 0;j < keys->size();j++)
+      sift_vals[j] = keys->points[j].scale;
+    sort(sift_vals.begin(), sift_vals.end());
+    int ind = sift_vals.size() * sift_prct;
+    float prctile = sift_vals[ind];
+    pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+    for(size_t j = 0;j < keys->size();j++)
+    {
+      if(keys->points[j].scale >= prctile)
+        inliers->indices.push_back(j);
+    }
+    pcl::ExtractIndices<pcl::PointWithScale> extract;
+    extract.setInputCloud (keys);
+    extract.setIndices (inliers);
+    extract.setNegative (false);
+    extract.filter (*keys);
   }
 
   // get normals
@@ -149,7 +194,13 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   {
     cout << "Original Size: " << cloud->points.size() << "\n";
     if(!filt_name.empty())
+    {
+      if(extr_down)
+        cout << "Downsample+";
       cout << filt_name << " Size: " << filt->points.size() << "\n";
+    }
+    if(sift_prct > 0 && !ext_points)
+      cout << "Original Keypoints: " << sift_vals.size() << endl;
     cout << "Keypoints: " << keys->points.size() << endl;
   }
   if(show_filt)
