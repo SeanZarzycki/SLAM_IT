@@ -505,26 +505,36 @@ int main( int argc, char** argv )
 		fullSystem->outputWrapper.push_back(pcl_wrap);
 	}
 
-
+	if(server)
+	{
+		printf("Server Started!\nAwaiting images\n");
+		while(reader->getNumImages() == 0)
+		{
+			usleep(100000);
+			reader->reloadDir();
+		}
+		printf("Images Received\nStarting DSO\n");
+	}
 
     // to make MacOS happy: run this in dedicated thread -- and use this one to run the GUI.
     std::thread runthread([&]() {
         std::vector<int> idsToPlay;
         std::vector<double> timesToPlayAt;
-        for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
-        {
-            idsToPlay.push_back(i);
-            if(timesToPlayAt.size() == 0)
-            {
-                timesToPlayAt.push_back((double)0);
-            }
-            else
-            {
-                double tsThis = reader->getTimestamp(idsToPlay[idsToPlay.size()-1]);
-                double tsPrev = reader->getTimestamp(idsToPlay[idsToPlay.size()-2]);
-                timesToPlayAt.push_back(timesToPlayAt.back() +  fabs(tsThis-tsPrev)/playbackSpeed);
-            }
-        }
+        if(!server)
+			for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
+			{
+				idsToPlay.push_back(i);
+				if(timesToPlayAt.size() == 0)
+				{
+					timesToPlayAt.push_back((double)0);
+				}
+				else
+				{
+					double tsThis = reader->getTimestamp(idsToPlay[idsToPlay.size()-1]);
+					double tsPrev = reader->getTimestamp(idsToPlay[idsToPlay.size()-2]);
+					timesToPlayAt.push_back(timesToPlayAt.back() +  fabs(tsThis-tsPrev)/playbackSpeed);
+				}
+			}
 
 
         std::vector<ImageAndExposure*> preloadedImages;
@@ -543,114 +553,204 @@ int main( int argc, char** argv )
         clock_t started = clock();
         double sInitializerOffset=0;
 
+		if(!server)
+		{
+			for(int ii=0;ii<(int)idsToPlay.size(); ii++)
+			{
+				if(!fullSystem->initialized)	// if not initialized: reset start time.
+				{
+					gettimeofday(&tv_start, NULL);
+					started = clock();
+					sInitializerOffset = timesToPlayAt[ii];
+				}
 
-        for(int ii=0;ii<(int)idsToPlay.size(); ii++)
-        {
-            if(!fullSystem->initialized)	// if not initialized: reset start time.
-            {
-                gettimeofday(&tv_start, NULL);
-                started = clock();
-                sInitializerOffset = timesToPlayAt[ii];
-            }
-
-            int i = idsToPlay[ii];
-
-
-            ImageAndExposure* img;
-            if(preload)
-                img = preloadedImages[ii];
-            else
-                img = reader->getImage(i);
-
-            bool skipFrame=false;
-            if(playbackSpeed!=0)
-            {
-                struct timeval tv_now; gettimeofday(&tv_now, NULL);
-                double sSinceStart = sInitializerOffset + ((tv_now.tv_sec-tv_start.tv_sec) + (tv_now.tv_usec-tv_start.tv_usec)/(1000.0f*1000.0f));
-
-                if(sSinceStart < timesToPlayAt[ii])
-                    usleep((int)((timesToPlayAt[ii]-sSinceStart)*1000*1000));
-                else if(sSinceStart > timesToPlayAt[ii]+0.5+0.1*(ii%2))
-                {
-                    printf("SKIPFRAME %d (play at %f, now it is %f)!\n", ii, timesToPlayAt[ii], sSinceStart);
-                    skipFrame=true;
-                }
-            }
+				int i = idsToPlay[ii];
 
 
+				ImageAndExposure* img;
+				if(preload)
+					img = preloadedImages[ii];
+				else
+					img = reader->getImage(i);
 
-            if(!skipFrame) fullSystem->addActiveFrame(img, i);
+				bool skipFrame=false;
+				if(playbackSpeed!=0)
+				{
+					struct timeval tv_now; gettimeofday(&tv_now, NULL);
+					double sSinceStart = sInitializerOffset + ((tv_now.tv_sec-tv_start.tv_sec) + (tv_now.tv_usec-tv_start.tv_usec)/(1000.0f*1000.0f));
+
+					if(sSinceStart < timesToPlayAt[ii])
+						usleep((int)((timesToPlayAt[ii]-sSinceStart)*1000*1000));
+					else if(sSinceStart > timesToPlayAt[ii]+0.5+0.1*(ii%2))
+					{
+						printf("SKIPFRAME %d (play at %f, now it is %f)!\n", ii, timesToPlayAt[ii], sSinceStart);
+						skipFrame=true;
+					}
+				}
 
 
 
-
-            delete img;
-
-            if(fullSystem->initFailed || setting_fullResetRequested)
-            {
-                if(ii < 250 || setting_fullResetRequested)
-                {
-                    printf("RESETTING!\n");
-
-                    std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
-                    delete fullSystem;
-
-                    for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
-
-                    fullSystem = new FullSystem();
-                    fullSystem->setGammaFunction(reader->getPhotometricGamma());
-                    fullSystem->linearizeOperation = (playbackSpeed==0);
+				if(!skipFrame) fullSystem->addActiveFrame(img, i);
 
 
-                    fullSystem->outputWrapper = wraps;
-
-                    setting_fullResetRequested=false;
-                }
-            }
-
-            if(fullSystem->isLost)
-            {
-                    printf("LOST!!\n");
-                    break;
-            }
-
-        }
-        fullSystem->blockUntilMappingIsFinished();
-        clock_t ended = clock();
-        struct timeval tv_end;
-        gettimeofday(&tv_end, NULL);
 
 
-        fullSystem->printResult("result.txt");
+				delete img;
+
+				if(fullSystem->initFailed || setting_fullResetRequested)
+				{
+					if(ii < 250 || setting_fullResetRequested)
+					{
+						printf("RESETTING!\n");
+
+						std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+						delete fullSystem;
+
+						for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+
+						fullSystem = new FullSystem();
+						fullSystem->setGammaFunction(reader->getPhotometricGamma());
+						fullSystem->linearizeOperation = (playbackSpeed==0);
 
 
-        int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());
-        double numSecondsProcessed = fabs(reader->getTimestamp(idsToPlay[0])-reader->getTimestamp(idsToPlay.back()));
-        double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
-        double MilliSecondsTakenMT = sInitializerOffset + ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f);
-        printf("\n======================"
-                "\n%d Frames (%.1f fps)"
-                "\n%.2fms per frame (single core); "
-                "\n%.2fms per frame (multi core); "
-                "\n%.3fx (single core); "
-                "\n%.3fx (multi core); "
-                "\n======================\n\n",
-                numFramesProcessed, numFramesProcessed/numSecondsProcessed,
-                MilliSecondsTakenSingle/numFramesProcessed,
-                MilliSecondsTakenMT / (float)numFramesProcessed,
-                1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
-                1000 / (MilliSecondsTakenMT / numSecondsProcessed));
-        //fullSystem->printFrameLifetimes();
-        if(setting_logStuff)
-        {
-            std::ofstream tmlog;
-            tmlog.open("logs/time.txt", std::ios::trunc | std::ios::out);
-            tmlog << 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC*reader->getNumImages()) << " "
-                  << ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f) / (float)reader->getNumImages() << "\n";
-            tmlog.flush();
-            tmlog.close();
-        }
+						fullSystem->outputWrapper = wraps;
 
+						setting_fullResetRequested=false;
+					}
+				}
+
+				if(fullSystem->isLost)
+				{
+						printf("LOST!!\n");
+						break;
+				}
+
+			}
+
+			fullSystem->blockUntilMappingIsFinished();
+			clock_t ended = clock();
+			struct timeval tv_end;
+			gettimeofday(&tv_end, NULL);
+
+			fullSystem->printResult("result.txt");
+
+			int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());
+			double numSecondsProcessed = fabs(reader->getTimestamp(idsToPlay[0])-reader->getTimestamp(idsToPlay.back()));
+			double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
+			double MilliSecondsTakenMT = sInitializerOffset + ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f);
+			printf("\n======================"
+					"\n%d Frames (%.1f fps)"
+					"\n%.2fms per frame (single core); "
+					"\n%.2fms per frame (multi core); "
+					"\n%.3fx (single core); "
+					"\n%.3fx (multi core); "
+					"\n======================\n\n",
+					numFramesProcessed, numFramesProcessed/numSecondsProcessed,
+					MilliSecondsTakenSingle/numFramesProcessed,
+					MilliSecondsTakenMT / (float)numFramesProcessed,
+					1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
+					1000 / (MilliSecondsTakenMT / numSecondsProcessed));
+			
+			if(setting_logStuff)
+			{
+				std::ofstream tmlog;
+				tmlog.open("logs/time.txt", std::ios::trunc | std::ios::out);
+				tmlog << 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC*reader->getNumImages()) << " "
+					<< ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f) / (float)reader->getNumImages() << "\n";
+				tmlog.flush();
+				tmlog.close();
+			}
+		}
+		else
+		{
+			int last_file = -1;
+			int count = 0;
+			bool run_server = true;
+			int stime = 0;
+			int wait_time = 100000;
+
+			while(run_server)
+			{
+				if(last_file < reader->getNumImages() - 1)
+				{
+					last_file = reader->getNumImages() - 1;
+
+					ImageAndExposure* img = reader->getImage(last_file);
+					fullSystem->addActiveFrame(img, count);
+					delete img;
+
+					if(fullSystem->initFailed || setting_fullResetRequested)
+					{
+						if(count < 250 || setting_fullResetRequested)
+						{
+							printf("RESETTING!\n");
+
+							std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+							delete fullSystem;
+
+							for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+
+							fullSystem = new FullSystem();
+							fullSystem->setGammaFunction(reader->getPhotometricGamma());
+							fullSystem->linearizeOperation = (playbackSpeed==0);
+
+
+							fullSystem->outputWrapper = wraps;
+
+							setting_fullResetRequested=false;
+						}
+					}
+					if(fullSystem->isLost)
+					{
+							printf("LOST!!\n");
+							break;
+					}
+
+					printf("Found Image %d\n", count);
+
+					count++;
+					stime = 0;
+				}
+				else if(stime * wait_time > 5 * 1000000.0)
+				{
+					// stop server if no new images have come in
+					run_server = false;
+					printf("No new images detected\nBeginning shutdown\n");
+				}
+				else
+				{
+					usleep(wait_time);
+					stime++;
+				}
+
+				printf("Waited: %f\nCurrently %d files\n", stime * wait_time / 1000000.0, reader->getNumImages());
+
+				// reload directory
+				reader->reloadDir();
+			}
+
+			fullSystem->blockUntilMappingIsFinished();
+			clock_t ended = clock();
+			struct timeval tv_end;
+			gettimeofday(&tv_end, NULL);
+
+			int numFramesProcessed = count;
+			double numSecondsProcessed = fabs(reader->getTimestamp(0)-reader->getTimestamp(count-1));
+			double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
+			double MilliSecondsTakenMT = sInitializerOffset + ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f);
+			printf("\n======================"
+					"\n%d Frames (%.1f fps)"
+					"\n%.2fms per frame (single core); "
+					"\n%.2fms per frame (multi core); "
+					"\n%.3fx (single core); "
+					"\n%.3fx (multi core); "
+					"\n======================\n\n",
+					numFramesProcessed, numFramesProcessed/numSecondsProcessed,
+					MilliSecondsTakenSingle/numFramesProcessed,
+					MilliSecondsTakenMT / (float)numFramesProcessed,
+					1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
+					1000 / (MilliSecondsTakenMT / numSecondsProcessed));
+		}
     });
 
 
