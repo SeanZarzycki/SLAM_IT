@@ -24,6 +24,7 @@ namespace IOWrap
 class CustomWrapper : public Output3DWrapper
 {
 private:
+	std::ofstream outfile1, outfile2;
 	float my_scaledTH, my_absTH, my_minRelBS;
 public:
 inline CustomWrapper()
