@@ -271,6 +271,10 @@ void parseArgument(char* arg)
 			disableAllDisplay = true;
 			printf("NO GUI!\n");
 		}
+		if(option==0)
+		{
+			disableAllDisplay = false;
+		}
 		return;
 	}
 	if(1==sscanf(arg,"nomt=%d",&option))
@@ -706,7 +710,7 @@ int main( int argc, char** argv )
 							break;
 					}
 
-					printf("Found Image %d\n", count);
+					//printf("Found Image %d\n", count);
 
 					count++;
 					stime = 0;
@@ -723,7 +727,7 @@ int main( int argc, char** argv )
 					stime++;
 				}
 
-				printf("Waited: %f\nCurrently %d files\n", stime * wait_time / 1000000.0, reader->getNumImages());
+				//printf("Waited: %f\nCurrently %d files\n", stime * wait_time / 1000000.0, reader->getNumImages());
 
 				// reload directory
 				reader->reloadDir();
