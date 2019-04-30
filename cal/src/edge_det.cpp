@@ -133,7 +133,10 @@ fuse::maxeig33 (const Matrix& mat, typename Matrix::Scalar& eigenvalue, Vector& 
   Vector eigenvalues;
   pcl::computeRoots (scaledMat, eigenvalues);
 
-  eigenvalue = eigenvalues (2) * scale;
+  bool swt;
+  swt = eigenvalues(2) / eigenvalues(1) >= eigenvalues(1) / eigenvalues(0);
+  
+  eigenvalue = eigenvalues (swt ? 0 : 2) * scale;
 
   scaledMat.diagonal ().array () -= eigenvalues (2);
 
@@ -145,12 +148,24 @@ fuse::maxeig33 (const Matrix& mat, typename Matrix::Scalar& eigenvalue, Vector& 
   Scalar len2 = vec2.squaredNorm ();
   Scalar len3 = vec3.squaredNorm ();
 
-  if (len1 <= len2 && len1 <= len3)
-    eigenvector = vec1 / std::sqrt (len1);
-  else if (len2 <= len1 && len2 <= len3)
-    eigenvector = vec2 / std::sqrt (len2);
+  if(swt)
+  {
+    if (len1 >= len2 && len1 >= len3)
+      eigenvector = vec1 / std::sqrt (len1);
+    else if (len2 >= len1 && len2 >= len3)
+      eigenvector = vec2 / std::sqrt (len2);
+    else
+      eigenvector = vec3 / std::sqrt (len3);
+  }
   else
-    eigenvector = vec3 / std::sqrt (len3);
+  {
+    if (len1 <= len2 && len1 <= len3)
+      eigenvector = vec1 / std::sqrt (len1);
+    else if (len2 <= len1 && len2 <= len3)
+      eigenvector = vec2 / std::sqrt (len2);
+    else
+      eigenvector = vec3 / std::sqrt (len3);
+  }
 };
 
 

@@ -14,8 +14,7 @@ slam_it/build*
 
 # data
 cal/dat/results*
-*.b64
-*.http
+
 # Precompiled Headers
 *.gch
 *.pch

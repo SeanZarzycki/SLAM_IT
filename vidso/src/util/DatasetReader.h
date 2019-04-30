@@ -186,6 +186,7 @@ public:
 
 	void reloadDir()
 	{
+		files.clear();
 		getdir (path, files);
 	}
 

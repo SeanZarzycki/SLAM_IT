@@ -15,16 +15,9 @@ import (
 
 const ImageDir = "./images/"
 
-// Message is what is received from the phone and sent to the server
 type Message struct {
 	ImageBase64 string
 	Timestamp   uint64
-}
-
-// ParseImage checks to see if Message m is ok. returns err from jpeg
-func (m Message) ParseImage() (imgBody []byte, err error) {
-
-	return
 }
 
 // adds the ".jpg" extension to a uint
@@ -53,26 +46,19 @@ func highestFileNameValue() (maxVal uint64) {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	// jsonEnc := json.NewEncoder(os.Stdout)
-	log.Println("Handler hit")
 	body, _ := ioutil.ReadAll(r.Body)
 	m := Message{}
+
 	err := json.Unmarshal(body, &m)
 	if err != nil {
-		log.Println("Bad json >:(")
-		log.Println(body)
 		log.Println(err)
 		return
 	}
-	log.Println("Good json :D")
 	base64Dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(m.ImageBase64))
 	imgBody, _ := ioutil.ReadAll(base64Dec)
 	_, err = jpeg.Decode(bytes.NewReader(imgBody))
 	if err != nil {
-		log.Println("Bad jpeg >:(")
 		log.Println(err)
-		ioutil.WriteFile("failed.jpg", imgBody, 0664)
-		ioutil.WriteFile("failed.b64", []byte(m.ImageBase64), 0664)
-		return
 	}
 
 	filename := uint2jpegfile(highestFileNameValue() + 1)
