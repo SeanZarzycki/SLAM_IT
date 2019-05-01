@@ -15,8 +15,8 @@ set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 # flags
 add_definitions("-DENABLE_SSE")
 set(CMAKE_CXX_FLAGS
-   "${SSE_FLAGS} -O3 -g -std=c++0x -march=native -Wall"
-#   "${SSE_FLAGS} -O3 -g -std=c++0x -fno-omit-frame-pointer"
+   #"${SSE_FLAGS} -O3 -g -std=c++0x -march=native -Wall"
+   "${SSE_FLAGS} -O0 -g -std=c++0x -march=native -Wall" # no optimizations
 )
 
 
@@ -31,6 +31,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
+add_library(fuselib ${PROJECT_SOURCE_DIR}/src/edge_det.cpp ${PROJECT_SOURCE_DIR}/src/Fuse_help.cpp)
 
 
 add_executable(data_convert ${PROJECT_SOURCE_DIR}/src/Data_Converter.cpp )
@@ -43,13 +44,16 @@ add_executable (statistical_removal ${PROJECT_SOURCE_DIR}/src/outlier3.cpp)
 target_link_libraries (statistical_removal ${PCL_LIBRARIES})
 
 add_executable (fuse ${PROJECT_SOURCE_DIR}/src/Fuse.cpp)
-target_link_libraries (fuse ${PCL_LIBRARIES})
+target_link_libraries (fuse fuselib ${PCL_LIBRARIES})
 
 add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)
 target_link_libraries (calib ${OpenCV_LIBS})
 
 add_executable(demo ${PROJECT_SOURCE_DIR}/src/Demo.cpp )
 target_link_libraries(demo ${PCL_LIBRARIES})
+<<<<<<< HEAD
 
 add_executable(plane_maker ${PROJECT_SOURCE_DIR}/src/plane_maker.cpp )
 target_link_libraries(plane_maker ${PCL_LIBRARIES})
+=======
+>>>>>>> 9c32c756be86d4c5a881c775f50b29bc76e92a00
