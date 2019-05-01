@@ -715,7 +715,7 @@ int main( int argc, char** argv )
 					count++;
 					stime = 0;
 				}
-				else if(stime * wait_time > 5 * 1000000.0)
+				else if(stime * wait_time > 10 * 1000000.0)
 				{
 					// stop server if no new images have come in
 					run_server = false;
