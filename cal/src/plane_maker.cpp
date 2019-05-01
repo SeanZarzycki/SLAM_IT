@@ -4,6 +4,8 @@
 #include <fstream>
 #include <string>
 
+#include <pcl/filters/voxelgrid.h>
+
 using namespace std;
 int main (int argc, char** argv)
 {
@@ -11,9 +13,16 @@ int main (int argc, char** argv)
     // defaults
     
     string filename = argv[1];
-    double delta = .00000001;
+    double delta = 0;
+    scanf("%f", argv[2], &delta);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::io::loadPCDFile ("../dat/pcl/" + filename, *cloud);
+
+    pcl::VoxelGrid<pcl::PointXYZRGB> vox;
+    vox.setInputCloud(cloud);
+    vox.setLeafSize(3*delta, 3*delta, 3*delta);
+    vox.filter(*cloud);
+
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
     cloud2->resize(4*cloud->size());
     //out_file.open("../dat/pcl/" + head + ".obj");
