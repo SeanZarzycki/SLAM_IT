@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 
-#include <pcl/filters/voxelgrid.h>
+#include <pcl/filters/voxel_grid.h>
 
 using namespace std;
 int main (int argc, char** argv)
