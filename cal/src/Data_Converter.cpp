@@ -5,6 +5,7 @@
 #include <cstring>
 #include <stdlib.h>
 #include <limits>
+#include <cstdlib>
 
 #include <boost/thread/thread.hpp>
 #include <pcl/point_types.h>
@@ -13,7 +14,7 @@
 using namespace std;
 
 string head;
-int dens, cc, allp;
+int dens, cc, allp, stat_filt;
 float dl, dh;
 
 class Frame
@@ -176,6 +177,12 @@ void parseArgument(const char* arg)
             dens = option;
 		return;
 	}
+	if(1==sscanf(arg,"filt=%d",&option))
+	{
+        if(option >= 0 && option <= 1)
+            stat_filt = option;
+		return;
+	}
     if(1==sscanf(arg,"dl=%f",&foption))
 	{
         dl = foption;
@@ -214,6 +221,7 @@ void parseArgument(const char* arg)
 
 int main( int argc, char** argv )
 {
+	stat_filt = 0;
 	dl = 0;
 	dh = numeric_limits<float>::infinity();
     dens = 0;
@@ -293,10 +301,36 @@ int main( int argc, char** argv )
 			pts_file.close();
 			cout << "Reorganizing Points\n";
 			pts.resize(max_id + 1);
-			for (size_t i = 0;i < tmp_pt.size();i++)
-				if(tmp_pt[i].id() >= 0)
-					if(tmp_pt[i].d() >= dl && tmp_pt[i].d() <= dh)
-						pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
+			if(stat_filt == 0)
+			{
+				for (size_t i = 0;i < tmp_pt.size();i++)
+					if(tmp_pt[i].id() >= 0)
+						if(tmp_pt[i].d() >= dl && tmp_pt[i].d() <= dh)
+							pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
+			}
+			else
+			{
+				float dmean = 0;
+				int count = 0;
+				for (size_t i = 0;i < tmp_pt.size();i++)
+					if(tmp_pt[i].id() >= 0)
+					{
+						dmean += tmp_pt[i].d();
+						count++;
+					}
+				dmean = dmean / count;
+				float dstd = 0;
+				for (size_t i = 0;i < tmp_pt.size();i++)
+					if(tmp_pt[i].id() >= 0)
+					{
+						dstd += powf(tmp_pt[i].d() - dmean, 2);
+					}
+				dstd = sqrt(dstd / count);
+				for (size_t i = 0;i < tmp_pt.size();i++)
+					if(tmp_pt[i].id() >= 0)
+						if(tmp_pt[i].d() >= dmean - dstd && tmp_pt[i].d() <= dmean + dstd)
+							pts[tmp_pt[i].id()].push_back(tmp_pt[i]);
+			}
 		}
         
         vector<CustPoint> cloud;
