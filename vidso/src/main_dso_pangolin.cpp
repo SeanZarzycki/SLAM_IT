@@ -184,11 +184,6 @@ void settingsDefault(int preset)
 	printf("==============================================\n");
 }
 
-
-
-
-
-
 void parseArgument(char* arg)
 {
 	int option;
@@ -430,7 +425,6 @@ void parseArgument(char* arg)
 }
 
 
-
 int main( int argc, char** argv )
 {
 	//setlocale(LC_ALL, "");
@@ -509,21 +503,21 @@ int main( int argc, char** argv )
 		fullSystem->outputWrapper.push_back(pcl_wrap);
 	}
 
-	if(server)
-	{
-		printf("Server Started!\nAwaiting images\n");
-		while(reader->getNumImages() == 0)
-		{
-			usleep(100000);
-			reader->reloadDir();
-		}
-		printf("Images Received\nStarting DSO\n");
-	}
-
-    // to make MacOS happy: run this in dedicated thread -- and use this one to run the GUI.
     std::thread runthread([&]() {
         std::vector<int> idsToPlay;
         std::vector<double> timesToPlayAt;
+		
+		if(server)
+		{
+			printf("Server Started!\nAwaiting images\n");
+			while(reader->getNumImages() == 0)
+			{
+				usleep(100000);
+				reader->reloadDir();
+			}
+			printf("Images Received\nStarting DSO\n");
+		}
+
         if(!server)
 			for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
 			{
@@ -679,10 +673,6 @@ int main( int argc, char** argv )
 				{
 					last_file = reader->getNumImages() - 1;
 
-					ImageAndExposure* img = reader->getImage(last_file);
-					fullSystem->addActiveFrame(img, count);
-					delete img;
-
 					if(fullSystem->initFailed || setting_fullResetRequested)
 					{
 						if(count < 250 || setting_fullResetRequested)
@@ -709,6 +699,10 @@ int main( int argc, char** argv )
 							printf("LOST!!\n");
 							break;
 					}
+					
+					ImageAndExposure* img = reader->getImage(last_file);
+					fullSystem->addActiveFrame(img, last_file);
+					delete img;
 
 					//printf("Found Image %d\n", count);
 
@@ -723,7 +717,6 @@ int main( int argc, char** argv )
 				}
 				else
 				{
-					usleep(wait_time);
 					stime++;
 				}
 
@@ -731,6 +724,7 @@ int main( int argc, char** argv )
 
 				// reload directory
 				reader->reloadDir();
+				usleep(wait_time);
 			}
 
 			fullSystem->blockUntilMappingIsFinished();
@@ -762,6 +756,7 @@ int main( int argc, char** argv )
         viewer->run();
 	if(usePCLView)
         pcl_run(cloud_viewer, pcl_wrap);
+
 
     runthread.join();
 
