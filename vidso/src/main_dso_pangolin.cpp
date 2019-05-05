@@ -72,6 +72,7 @@ bool useStdOutput=false;
 bool usePCLOutput=false;
 bool usePCLView=false;
 bool server=false;
+bool dens_cloud=false;
 
 
 int mode=0;
@@ -159,7 +160,8 @@ void settingsDefault(int preset)
 				"- original image resolution\n"
 				"PHOTOMETRIC MODE WITHOUT CALIBRATION!\n"
 				"DISABLE LOGGING!\n"
-				"USING PCL WRAPPER!\n");
+				"USING PCL WRAPPER!\n"
+				"RECORDING DENSE CLOUD\n");
 
 		playbackSpeed = 0;
 		preload = false;
@@ -171,7 +173,7 @@ void settingsDefault(int preset)
 		setting_maxOptIterations=6;
 		setting_minOptIterations=1;
 
-		// ./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=0 quiet=1 nogui=1 nolog=1
+		// ./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=0 quiet=1 nogui=1 nolog=1 dens=1
 		mode = 1;
 		setting_photometricCalibration = 0;
 		setting_affineOptModeA = 0; //-1: fix. >=0: optimize (with prior, if > 0).
@@ -179,6 +181,7 @@ void settingsDefault(int preset)
 		usePCLOutput = true;
 		setting_logStuff = false;
 		disableAllDisplay = true;
+		dens_cloud = true;
 	}
 
 	printf("==============================================\n");
@@ -420,6 +423,15 @@ void parseArgument(char* arg)
 		}
 		return;
 	}
+	if(1==sscanf(arg,"dens=%d",&option))
+	{
+		if(option==1)
+		{
+			dens_cloud = true;
+			printf("RECORDING DENSE CLOUD!\n");
+		}
+		return;
+	}
 
 	printf("could not parse argument \"%s\"!!!!\n", arg);
 }
@@ -500,6 +512,8 @@ int main( int argc, char** argv )
 		else
 			pcl_wrap = new IOWrap::PCLWrapper();
 		
+		pcl_wrap->setDense(dens_cloud);
+
 		fullSystem->outputWrapper.push_back(pcl_wrap);
 	}
 
