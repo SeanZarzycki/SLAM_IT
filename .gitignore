@@ -10,6 +10,7 @@
 cal/build*
 cal/dat/results*
 vidso/build*
+server/images*
 
 # Precompiled Headers
 *.gch
