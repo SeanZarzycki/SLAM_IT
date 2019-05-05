@@ -14,7 +14,7 @@ int main (int argc, char** argv)
     
     string filename = argv[1];
     double delta = 0;
-    scanf("%f", argv[2], &delta);
+    sscanf(argv[2], "%f", &delta);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::io::loadPCDFile ("../dat/pcl/" + filename, *cloud);
 

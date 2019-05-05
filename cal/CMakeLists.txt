@@ -54,3 +54,6 @@ target_link_libraries(demo ${PCL_LIBRARIES})
 
 add_executable(plane_maker ${PROJECT_SOURCE_DIR}/src/plane_maker.cpp )
 target_link_libraries(plane_maker ${PCL_LIBRARIES})
+
+add_executable(slam_converter ${PROJECT_SOURCE_DIR}/src/slam_converter.cpp )
+target_link_libraries(slam_converter ${PCL_LIBRARIES})
