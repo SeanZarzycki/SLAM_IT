@@ -22,7 +22,7 @@ type Message struct {
 
 // adds the ".jpg" extension to a uint
 func uint2jpegfile(x uint64) (filename string) {
-	filename = fmt.Sprintf("%v.png", x)
+	filename = fmt.Sprintf("%06v.png", x)
 	return
 }
 
