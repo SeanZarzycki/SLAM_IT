@@ -38,7 +38,7 @@ class PCLWrapper : public Output3DWrapper
 private:
     boost::mutex mtx_;
 	float my_scaledTH, my_absTH, my_minRelBS;
-	bool view, update;
+	bool view, update, dens;
 
 	pcl::visualization::PCLVisualizer::Ptr pclviewer;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
@@ -94,42 +94,52 @@ bool update_needed()
 	update = false;
 	return temp;
 }
+void setDense(bool dense)
+{
+	dens = dense;
+}
 
 virtual void publishKeyframes( std::vector<FrameHessian*> &frames, bool isfinal, CalibHessian* HCalib) override
 {
+	int factor = (dens ? 8 : 1);
 	if(isfinal)
 	{
 		for(FrameHessian* f : frames)
 		{
 			pcl::PointCloud<pcl::PointXYZRGB> tmp;
-			tmp.resize(f->pointHessiansMarginalized.size());
+			tmp.resize(f->pointHessiansMarginalized.size() * factor);
 
 			float fxi = 1.0 / (*HCalib).fxl();
 			float fyi = 1.0 / (*HCalib).fxl();
 			float cxi = -(*HCalib).cxl() * fxi;
 			float cyi = -(*HCalib).cyl() * fyi;
 
+			Eigen::Matrix<double,3,4> temp = f->shell->camToWorld.matrix3x4();
+			Eigen::Matrix4f mat = Eigen::Matrix4f::Identity(4,4);
+			for(int i = 0;i < 3;i++)
+				for(int j = 0;j < 4;j++)
+					mat(i, j) = temp(i, j);
+
 			for(size_t i = 0;i < f->pointHessiansMarginalized.size();i++)
 			{
-				Eigen::Vector4f pf;
-				pf[0] = (f->pointHessiansMarginalized[i]->u * fxi + cxi) / f->pointHessiansMarginalized[i]->idepth_scaled;
-				pf[1] = (f->pointHessiansMarginalized[i]->v * fyi + cyi) / f->pointHessiansMarginalized[i]->idepth_scaled;
-				pf[2] = 1.0 / f->pointHessiansMarginalized[i]->idepth_scaled;
-				pf[3] = 1;
-				Eigen::Matrix<double,3,4> temp = f->shell->camToWorld.matrix3x4();
-				Eigen::Matrix4f mat = Eigen::Matrix4f::Identity(4,4);
-				for(int i = 0;i < 3;i++)
-					for(int j = 0;j < 4;j++)
-						mat(i, j) = temp(i, j);
-				Eigen::Vector4f pw = mat * pf;
+				for(size_t j = 0;j < factor;j++)
+				{
+					Eigen::Vector4f pf;
+					pf[0] = ((f->pointHessiansMarginalized[i]->u + patternP[j][0]) * fxi + cxi) / f->pointHessiansMarginalized[i]->idepth_scaled;
+					pf[1] = ((f->pointHessiansMarginalized[i]->v + patternP[j][1]) * fyi + cyi) / f->pointHessiansMarginalized[i]->idepth_scaled;
+					pf[2] = 1.0 / f->pointHessiansMarginalized[i]->idepth_scaled;
+					pf[3] = 1;
+					
+					Eigen::Vector4f pw = mat * pf;
 
-				tmp.points[i].x = pw[0];
-				tmp.points[i].y = pw[1];
-				tmp.points[i].z = pw[2];
+					tmp.points[i*factor+j].x = pw[0];
+					tmp.points[i*factor+j].y = pw[1];
+					tmp.points[i*factor+j].z = pw[2];
 
-				tmp.points[i].r = f->pointHessiansMarginalized[i]->rc[0];
-				tmp.points[i].g = f->pointHessiansMarginalized[i]->gc[0];
-				tmp.points[i].b = f->pointHessiansMarginalized[i]->bc[0];
+					tmp.points[i*factor+j].r = f->pointHessiansMarginalized[i]->rc[j];
+					tmp.points[i*factor+j].g = f->pointHessiansMarginalized[i]->gc[j];
+					tmp.points[i*factor+j].b = f->pointHessiansMarginalized[i]->bc[j];
+				}
 			}
 
 			mtx_.lock();
