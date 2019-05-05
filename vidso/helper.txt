@@ -24,3 +24,4 @@ table:
 Server:
 // use preset 4, assign folder and camera file
 ./bin/dso_dataset preset=4 files=~/data/test calib=../mark_camera.txt
+./bin/dso_dataset preset=4 files=~/data/test calib=../mark_camera.txt nogui=0 quiet=0
