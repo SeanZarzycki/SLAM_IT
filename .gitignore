@@ -11,6 +11,7 @@ cal/build*
 cal/dat/results*
 vidso/build*
 server/images*
+cal/dat/mobile*
 
 # Precompiled Headers
 *.gch
