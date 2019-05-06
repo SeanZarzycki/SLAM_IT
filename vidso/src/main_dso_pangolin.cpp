@@ -486,13 +486,6 @@ int main( int argc, char** argv )
 
 
 
-    IOWrap::PangolinDSOViewer* viewer = 0;
-	if(!disableAllDisplay)
-    {
-        viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
-        fullSystem->outputWrapper.push_back(viewer);
-    }
-
 
 
     if(useSampleOutput)
@@ -516,6 +509,13 @@ int main( int argc, char** argv )
 
 		fullSystem->outputWrapper.push_back(pcl_wrap);
 	}
+
+	IOWrap::PangolinDSOViewer* viewer = 0;
+	if(!disableAllDisplay)
+    {
+        viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
+        fullSystem->outputWrapper.push_back(viewer);
+    }
 
     std::thread runthread([&]() {
         std::vector<int> idsToPlay;
