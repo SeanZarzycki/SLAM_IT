@@ -78,10 +78,22 @@ inline PCLWrapper(pcl::visualization::PCLVisualizer::Ptr cloud_viewer)
 
 virtual ~PCLWrapper()
 {
-	pcl::PCDWriter writer;
- 	writer.write<pcl::PointXYZRGB> ("../../cal/dat/pcl/output.pcd", *cloud, true);
 
 	printf("OUT: Destroyed Custom OutputWrapper\n");
+}
+
+
+virtual void join()
+{
+	pcl::PCDWriter writer;
+ 	writer.write<pcl::PointXYZRGB> ("../../cal/dat/pcl/output.pcd", *cloud, true);
+	printf("Write Point Cloud to file\n");
+}
+virtual void reset()
+{
+	mtx_.lock();
+	cloud->clear();
+	mtx_.unlock();
 }
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCloud()
@@ -132,8 +144,8 @@ virtual void publishKeyframes( std::vector<FrameHessian*> &frames, bool isfinal,
 					
 					Eigen::Vector4f pw = mat * pf;
 
-					tmp.points[i*factor+j].x = pw[0];
-					tmp.points[i*factor+j].y = pw[1];
+					tmp.points[i*factor+j].x = -pw[0];
+					tmp.points[i*factor+j].y = -pw[1];
 					tmp.points[i*factor+j].z = pw[2];
 
 					tmp.points[i*factor+j].r = f->pointHessiansMarginalized[i]->rc[j];
