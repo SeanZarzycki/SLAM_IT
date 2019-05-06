@@ -482,12 +482,6 @@ int main( int argc, char** argv )
 
 
 
-
-
-
-
-
-
     if(useSampleOutput)
         fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
     if(useStdOutput)
@@ -689,29 +683,26 @@ int main( int argc, char** argv )
 
 					if(fullSystem->initFailed || setting_fullResetRequested)
 					{
-						if(count < 250 || setting_fullResetRequested)
-						{
-							printf("RESETTING!\n");
+						printf("RESETTING!\n");
 
-							std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
-							delete fullSystem;
+						std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+						delete fullSystem;
 
-							for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+						for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
 
-							fullSystem = new FullSystem();
-							fullSystem->setGammaFunction(reader->getPhotometricGamma());
-							fullSystem->linearizeOperation = (playbackSpeed==0);
+						fullSystem = new FullSystem();
+						fullSystem->setGammaFunction(reader->getPhotometricGamma());
+						fullSystem->linearizeOperation = (playbackSpeed==0);
 
 
-							fullSystem->outputWrapper = wraps;
+						fullSystem->outputWrapper = wraps;
 
-							setting_fullResetRequested=false;
-						}
+						setting_fullResetRequested=false;
 					}
 					if(fullSystem->isLost)
 					{
-							printf("LOST!!\n");
-							break;
+						printf("LOST!!\n");
+						break;
 					}
 					
 					ImageAndExposure* img = reader->getImage(last_file);
