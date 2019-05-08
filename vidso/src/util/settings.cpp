@@ -213,9 +213,9 @@ int sparsityFactor = 5;	// not actually a setting, only some legacy stuff for co
 
 
 // PCL Wrapper
-int pcl_its = 1;
-float pcl_dx = 35; // filt width is x2+1
-float pcl_dy = 35; // filt height is x2+1
+int pcl_its = 2;
+float pcl_dx = 30; // filt width is x2+1
+float pcl_dy = 30; // filt height is x2+1
 float pcl_prc = 0.05; // percent ignored of data at lower and upper bounds
 int pcl_ps = 0.5 / pcl_prc; // number of points required in filter for pass
 float pcl_var = (0.0025*pcl_dx)/3 * (0.0025*pcl_dx); // max variance allowed per block
