@@ -151,7 +151,8 @@ virtual void publishKeyframes( std::vector<FrameHessian*> &frames, bool isfinal,
 			std::vector<PointHessian*> points = f->pointHessiansMarginalized;
 			std::vector<int> keeps;
 			for(size_t i = 0;i < f->pointHessiansMarginalized.size();i++)
-				keeps.push_back(i);
+				if(points[i]->idepth_scaled > 0.0001 && points[i]->idepth_scaled < 10000)
+					keeps.push_back(i);
 			for(size_t l = 0;l < pcl_its;l++)
 			{
 				std::vector<bool> choose (keeps.size(), true);
