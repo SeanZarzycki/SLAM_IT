@@ -116,8 +116,8 @@ void settingsDefault(int preset)
 
 		playbackSpeed = (preset==0 ? 0 : 1);
 		preload = preset==1;
-		setting_desiredImmatureDensity = 5000;//1500;
-		setting_desiredPointDensity = 10000;//2000;
+		setting_desiredImmatureDensity = 1500;//1500;
+		setting_desiredPointDensity = 2000;//2000;
 		setting_minFrames = 5;
 		setting_maxFrames = 7;//7;
 		setting_maxOptIterations=6;//6;
