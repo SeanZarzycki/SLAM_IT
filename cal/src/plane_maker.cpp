@@ -13,7 +13,7 @@ int main (int argc, char** argv)
     // defaults
     
     string filename = argv[1];
-    double delta = 0;
+    float delta = 0;
     sscanf(argv[2], "%f", &delta);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::io::loadPCDFile ("../dat/pcl/" + filename, *cloud);
@@ -26,7 +26,7 @@ int main (int argc, char** argv)
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
     cloud2->resize(4*cloud->size());
     //out_file.open("../dat/pcl/" + head + ".obj");
-    for(int i=0; i < cloud->size(); i++)
+    for(int i=0; i<cloud->size(); i++)
     {
         // top
         int j = 0;
