@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 )
@@ -18,6 +19,18 @@ const ImageDir = "./images/"
 type Message struct {
 	ImageBase64 string
 	Timestamp   uint64
+}
+
+// exists returns whether the given file or directory exists
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
+	return true, err
 }
 
 // adds the ".jpg" extension to a uint
@@ -62,8 +75,17 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filename := uint2jpegfile(highestFileNameValue() + 1)
-	log.Println("Writing to " + filename)
-	ioutil.WriteFile(ImageDir+filename, imgBody, 0664)
+	addr := strings.Split(r.RemoteAddr, ":")
+	ip := addr[0]
+	dir := ImageDir + ip
+	dirExists, _ := exists(dir)
+	if !dirExists {
+		os.MkdirAll(dir, 0777)
+	}
+
+	path := dir + "/" + filename
+	log.Println("Writing to " + path)
+	ioutil.WriteFile(path, imgBody, 0664)
 
 	// jsonEnc.Encode(&m)
 }
