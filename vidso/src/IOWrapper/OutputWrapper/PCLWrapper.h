@@ -7,6 +7,7 @@
 
 #include "FullSystem/HessianBlocks.h"
 #include "util/FrameShell.h"
+#include <util/settings.h>
 
 #include "vector"
 #include <fstream>
@@ -38,7 +39,7 @@ class PCLWrapper : public Output3DWrapper
 private:
     boost::mutex mtx_;
 	float my_scaledTH, my_absTH, my_minRelBS;
-	bool view, update;
+	bool view, update, dens;
 
 	pcl::visualization::PCLVisualizer::Ptr pclviewer;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
@@ -78,10 +79,22 @@ inline PCLWrapper(pcl::visualization::PCLVisualizer::Ptr cloud_viewer)
 
 virtual ~PCLWrapper()
 {
-	pcl::PCDWriter writer;
- 	writer.write<pcl::PointXYZRGB> ("../../cal/dat/pcl/output.pcd", *cloud, true);
 
 	printf("OUT: Destroyed Custom OutputWrapper\n");
+}
+
+
+virtual void join()
+{
+	pcl::PCDWriter writer;
+ 	writer.write<pcl::PointXYZRGB> ("../../cal/dat/pcl/output.pcd", *cloud, true);
+	printf("Write Point Cloud to file\n");
+}
+virtual void reset()
+{
+	mtx_.lock();
+	cloud->clear();
+	mtx_.unlock();
 }
 
 pcl::PointCloud<pcl::PointXYZRGB>::Ptr getCloud()
@@ -94,43 +107,139 @@ bool update_needed()
 	update = false;
 	return temp;
 }
-
+void setDense(bool dense)
+{
+	dens = dense;
+}
+/*
+// dump points to files
+// used for debug only
+bool mem_dump = false;
+int fid = 0;
+*/
 virtual void publishKeyframes( std::vector<FrameHessian*> &frames, bool isfinal, CalibHessian* HCalib) override
 {
+	int factor = (dens ? 8 : 1);
 	if(isfinal)
 	{
 		for(FrameHessian* f : frames)
-		{
+		{/*
+			std::ofstream out_file;
+			if(mem_dump)
+			{
+				out_file.open("/home/steve/repos/SLAM_IT/cal/dat/dump/frame_" + std::to_string(fid) + ".csv");
+				if(!out_file.is_open())
+					cout << "error opening file\n";
+				out_file << "u v d r g b" << std::endl;
+				fid++;
+			}*/
+
 			pcl::PointCloud<pcl::PointXYZRGB> tmp;
-			tmp.resize(f->pointHessiansMarginalized.size());
+			tmp.resize(f->pointHessiansMarginalized.size() * factor);
 
 			float fxi = 1.0 / (*HCalib).fxl();
 			float fyi = 1.0 / (*HCalib).fxl();
 			float cxi = -(*HCalib).cxl() * fxi;
 			float cyi = -(*HCalib).cyl() * fyi;
 
+			Eigen::Matrix<double,3,4> temp = f->shell->camToWorld.matrix3x4();
+			Eigen::Matrix4f mat = Eigen::Matrix4f::Identity(4,4);
+			for(int i = 0;i < 3;i++)
+				for(int j = 0;j < 4;j++)
+					mat(i, j) = temp(i, j);
+
+			std::vector<PointHessian*> points = f->pointHessiansMarginalized;
+			std::vector<int> keeps;
 			for(size_t i = 0;i < f->pointHessiansMarginalized.size();i++)
+				if(points[i]->idepth_scaled > 0.0001 && points[i]->idepth_scaled < 10000)
+					keeps.push_back(i);
+			for(size_t l = 0;l < pcl_its;l++)
 			{
-				Eigen::Vector4f pf;
-				pf[0] = (f->pointHessiansMarginalized[i]->u * fxi + cxi) / f->pointHessiansMarginalized[i]->idepth_scaled;
-				pf[1] = (f->pointHessiansMarginalized[i]->v * fyi + cyi) / f->pointHessiansMarginalized[i]->idepth_scaled;
-				pf[2] = 1.0 / f->pointHessiansMarginalized[i]->idepth_scaled;
-				pf[3] = 1;
-				Eigen::Matrix<double,3,4> temp = f->shell->camToWorld.matrix3x4();
-				Eigen::Matrix4f mat = Eigen::Matrix4f::Identity(4,4);
-				for(int i = 0;i < 3;i++)
-					for(int j = 0;j < 4;j++)
-						mat(i, j) = temp(i, j);
-				Eigen::Vector4f pw = mat * pf;
+				std::vector<bool> choose (keeps.size(), true);
+				for(int i = 0;i < keeps.size();i++)
+				{
+					PointHessian* cp = points[keeps[i]];
+					
+					std::vector<float> depths;
+					for(size_t j = 0;j < keeps.size();j++)
+						if(abs(cp->u - points[keeps[j]]->u) <= pcl_dx && abs(cp->v - points[keeps[j]]->v) <= pcl_dy)
+							depths.push_back(1.0 / points[keeps[j]]->idepth_scaled);
+					if(depths.size() < pcl_ps)
+					{
+						choose[i] = false;
+					}
+					else
+					{
+						std::sort(depths.begin(), depths.end());
+						int pidx = std::round(pcl_prc * (depths.size() - 1));
+						std::vector<float> filts (depths.begin() + pidx, depths.end() - pidx);
+						int N = filts.size();
 
-				tmp.points[i].x = pw[0];
-				tmp.points[i].y = pw[1];
-				tmp.points[i].z = pw[2];
+						float md = 0;
+						for(size_t j = 0;j < filts.size();j++)
+							md += filts[j];
+						md /= N;
+						float dv = 0;
+						for(size_t j = 0;j < filts.size();j++)
+							dv += pow(md - filts[j], 2);
+						dv /= N - 1;
 
-				tmp.points[i].r = f->pointHessiansMarginalized[i]->rc[0];
-				tmp.points[i].g = f->pointHessiansMarginalized[i]->gc[0];
-				tmp.points[i].b = f->pointHessiansMarginalized[i]->bc[0];
+						if(dv > pcl_var)
+						{
+							choose[i] = false;
+						}
+						else
+						{
+							float mn = filts[0];
+							float mx = filts[N-1];
+							float elt = (N * mn - mx) / (N - 1);
+							float eut = (N * mx - mn) / (N - 1);
+							float el = ((1 - pcl_prc) * elt - pcl_prc * eut) / (1 - 2 * pcl_prc);
+							float eu = ((1 - pcl_prc) * eut - pcl_prc * elt) / (1 - 2 * pcl_prc);
+							choose[i] = 1.0 >= el * cp->idepth_scaled && 1.0 <= eu * cp->idepth_scaled;
+						}
+					}
+				}
+				std::vector<int> temp_vec;
+				for(size_t i = 0;i < keeps.size();i++)
+					if(choose[i])
+						temp_vec.push_back(keeps[i]);
+				keeps = temp_vec;
 			}
+			for(size_t i = 0;i < keeps.size();i++)
+			{
+				PointHessian* cp = f->pointHessiansMarginalized[keeps[i]];
+				
+				for(size_t j = 0;j < factor;j++)
+				{
+					Eigen::Vector4f pf;
+					pf[0] = ((cp->u + patternP[j][0]) * fxi + cxi) / cp->idepth_scaled;
+					pf[1] = ((cp->v + patternP[j][1]) * fyi + cyi) / cp->idepth_scaled;
+					pf[2] = 1.0 / cp->idepth_scaled;
+					pf[3] = 1;
+					
+					Eigen::Vector4f pw = mat * pf;
+
+					tmp.points[i*factor+j].x = -pw[0];
+					tmp.points[i*factor+j].y = -pw[1];
+					tmp.points[i*factor+j].z = pw[2];
+
+					tmp.points[i*factor+j].r = cp->rc[j];
+					tmp.points[i*factor+j].g = cp->gc[j];
+					tmp.points[i*factor+j].b = cp->bc[j];
+				}
+					
+					/*
+				if(mem_dump)
+				{
+					out_file << cp->u << " " << cp->v << " " << (1.0 / cp->idepth_scaled) << " " << cp->rc[0] << " " << cp->gc[0] << " " << cp->bc[0] << endl;
+				}*/
+			}
+			/*
+			if(mem_dump)
+			{
+				out_file.close();
+			}*/
 
 			mtx_.lock();
 			(*cloud) += tmp;

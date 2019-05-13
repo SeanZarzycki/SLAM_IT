@@ -206,6 +206,15 @@ extern int staticPatternPadding[10];
 
 
 
+// PCL Wrapper Filter
+extern int pcl_its;
+extern float pcl_dx;
+extern float pcl_dy;
+extern float pcl_prc;
+extern int pcl_ps;
+extern float pcl_var;
+
+
 
 //#define patternNum staticPatternNum[setting_pattern]
 //#define patternP staticPattern[setting_pattern]

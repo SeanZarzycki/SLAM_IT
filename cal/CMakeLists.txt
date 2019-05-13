@@ -31,7 +31,7 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
-add_library(fuselib ${PROJECT_SOURCE_DIR}/src/edge_det.cpp ${PROJECT_SOURCE_DIR}/src/Fuse_help.cpp)
+add_library(fuselib ${PROJECT_SOURCE_DIR}/src/edge_det.cpp ${PROJECT_SOURCE_DIR}/src/Fuse.cpp ${PROJECT_SOURCE_DIR}/src/Fuse_help.cpp)
 
 
 add_executable(data_convert ${PROJECT_SOURCE_DIR}/src/Data_Converter.cpp )
@@ -43,7 +43,7 @@ target_link_libraries(view_example3 ${PCL_LIBRARIES})
 add_executable (statistical_removal ${PROJECT_SOURCE_DIR}/src/outlier3.cpp)
 target_link_libraries (statistical_removal ${PCL_LIBRARIES})
 
-add_executable (fuse ${PROJECT_SOURCE_DIR}/src/Fuse.cpp)
+add_executable (fuse ${PROJECT_SOURCE_DIR}/src/iter_fuse.cpp)
 target_link_libraries (fuse fuselib ${PCL_LIBRARIES})
 
 add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)

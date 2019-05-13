@@ -5,7 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"image/png"
+	"image/jpeg"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -22,7 +22,7 @@ type Message struct {
 
 // adds the ".jpg" extension to a uint
 func uint2jpegfile(x uint64) (filename string) {
-	filename = fmt.Sprintf("%v.png", x)
+	filename = fmt.Sprintf("%06v.jpg", x)
 	return
 }
 
@@ -56,7 +56,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	}
 	base64Dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(m.ImageBase64))
 	imgBody, _ := ioutil.ReadAll(base64Dec)
-	_, err = png.Decode(bytes.NewReader(imgBody))
+	_, err = jpeg.Decode(bytes.NewReader(imgBody))
 	if err != nil {
 		log.Println(err)
 	}

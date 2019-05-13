@@ -72,6 +72,7 @@ bool useStdOutput=false;
 bool usePCLOutput=false;
 bool usePCLView=false;
 bool server=false;
+bool dens_cloud=false;
 
 
 int mode=0;
@@ -115,11 +116,11 @@ void settingsDefault(int preset)
 
 		playbackSpeed = (preset==0 ? 0 : 1);
 		preload = preset==1;
-		setting_desiredImmatureDensity = 1500;
-		setting_desiredPointDensity = 2000;
+		setting_desiredImmatureDensity = 1500;//1500;
+		setting_desiredPointDensity = 2000;//2000;
 		setting_minFrames = 5;
-		setting_maxFrames = 7;
-		setting_maxOptIterations=6;
+		setting_maxFrames = 7;//7;
+		setting_maxOptIterations=6;//6;
 		setting_minOptIterations=1;
 
 		setting_logStuff = false;
@@ -153,25 +154,26 @@ void settingsDefault(int preset)
 	{
 		printf("SERVER settings:\n"
 				"- Use newest frame\n"
-				"- 2000 active points\n"
+				"- 10000 active points\n"
 				"- 5-7 active frames\n"
 				"- 1-6 LM iteration each KF\n"
 				"- original image resolution\n"
 				"PHOTOMETRIC MODE WITHOUT CALIBRATION!\n"
 				"DISABLE LOGGING!\n"
-				"USING PCL WRAPPER!\n");
+				"USING PCL WRAPPER!\n"
+				"RECORDING DENSE CLOUD\n");
 
 		playbackSpeed = 0;
 		preload = false;
 		server = true;
-		setting_desiredImmatureDensity = 1500;
-		setting_desiredPointDensity = 2000;
+		setting_desiredImmatureDensity = 5000;
+		setting_desiredPointDensity = 10000;
 		setting_minFrames = 5;
 		setting_maxFrames = 7;
 		setting_maxOptIterations=6;
 		setting_minOptIterations=1;
 
-		// ./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=0 quiet=1 nogui=1 nolog=1
+		// ./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=0 quiet=1 nogui=1 nolog=1 dens=1
 		mode = 1;
 		setting_photometricCalibration = 0;
 		setting_affineOptModeA = 0; //-1: fix. >=0: optimize (with prior, if > 0).
@@ -179,6 +181,7 @@ void settingsDefault(int preset)
 		usePCLOutput = true;
 		setting_logStuff = false;
 		disableAllDisplay = true;
+		dens_cloud = true;
 	}
 
 	printf("==============================================\n");
@@ -420,6 +423,15 @@ void parseArgument(char* arg)
 		}
 		return;
 	}
+	if(1==sscanf(arg,"dens=%d",&option))
+	{
+		if(option==1)
+		{
+			dens_cloud = true;
+			printf("RECORDING DENSE CLOUD!\n");
+		}
+		return;
+	}
 
 	printf("could not parse argument \"%s\"!!!!\n", arg);
 }
@@ -470,19 +482,6 @@ int main( int argc, char** argv )
 
 
 
-
-
-
-
-    IOWrap::PangolinDSOViewer* viewer = 0;
-	if(!disableAllDisplay)
-    {
-        viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
-        fullSystem->outputWrapper.push_back(viewer);
-    }
-
-
-
     if(useSampleOutput)
         fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
     if(useStdOutput)
@@ -500,8 +499,17 @@ int main( int argc, char** argv )
 		else
 			pcl_wrap = new IOWrap::PCLWrapper();
 		
+		pcl_wrap->setDense(dens_cloud);
+
 		fullSystem->outputWrapper.push_back(pcl_wrap);
 	}
+
+	IOWrap::PangolinDSOViewer* viewer = 0;
+	if(!disableAllDisplay)
+    {
+        viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
+        fullSystem->outputWrapper.push_back(viewer);
+    }
 
     std::thread runthread([&]() {
         std::vector<int> idsToPlay;
@@ -675,29 +683,26 @@ int main( int argc, char** argv )
 
 					if(fullSystem->initFailed || setting_fullResetRequested)
 					{
-						if(count < 250 || setting_fullResetRequested)
-						{
-							printf("RESETTING!\n");
+						printf("RESETTING!\n");
 
-							std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
-							delete fullSystem;
+						std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+						delete fullSystem;
 
-							for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+						for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
 
-							fullSystem = new FullSystem();
-							fullSystem->setGammaFunction(reader->getPhotometricGamma());
-							fullSystem->linearizeOperation = (playbackSpeed==0);
+						fullSystem = new FullSystem();
+						fullSystem->setGammaFunction(reader->getPhotometricGamma());
+						fullSystem->linearizeOperation = (playbackSpeed==0);
 
 
-							fullSystem->outputWrapper = wraps;
+						fullSystem->outputWrapper = wraps;
 
-							setting_fullResetRequested=false;
-						}
+						setting_fullResetRequested=false;
 					}
 					if(fullSystem->isLost)
 					{
-							printf("LOST!!\n");
-							break;
+						printf("LOST!!\n");
+						break;
 					}
 					
 					ImageAndExposure* img = reader->getImage(last_file);
