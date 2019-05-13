@@ -57,3 +57,6 @@ target_link_libraries(plane_maker ${PCL_LIBRARIES})
 
 add_executable(slam_converter ${PROJECT_SOURCE_DIR}/src/slam_converter.cpp )
 target_link_libraries(slam_converter ${PCL_LIBRARIES})
+
+add_executable(uncompressor ${PROJECT_SOURCE_DIR}/src/uncompressor.cpp )
+target_link_libraries(uncompressor ${PCL_LIBRARIES})
