@@ -39,9 +39,9 @@ func uint2jpegfile(x uint64) (filename string) {
 	return
 }
 
-func highestFileNameValue() (maxVal uint64) {
+func highestFileNameValue(dir string) (maxVal uint64) {
 	maxVal = 0
-	files, err := ioutil.ReadDir(ImageDir)
+	files, err := ioutil.ReadDir(dir)
 	if err != nil {
 		log.Println(err)
 		return
@@ -73,8 +73,6 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Println(err)
 	}
-
-	filename := uint2jpegfile(highestFileNameValue() + 1)
 	addr := strings.Split(r.RemoteAddr, ":")
 	ip := addr[0]
 	dir := ImageDir + ip
@@ -82,6 +80,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	if !dirExists {
 		os.MkdirAll(dir, 0777)
 	}
+
+	filename := uint2jpegfile(highestFileNameValue(dir) + 1)
 
 	path := dir + "/" + filename
 	log.Println("Writing to " + path)
