@@ -29,6 +29,7 @@
 #include "IOWrapper/Output3DWrapper.h"
 #include <map>
 #include <deque>
+#include <string>
 
 
 namespace dso
@@ -55,8 +56,10 @@ struct GraphConnection
 class PangolinDSOViewer : public Output3DWrapper
 {
 public:
+	std::string title_name;
 	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
     PangolinDSOViewer(int w, int h, bool startRunThread=true);
+	PangolinDSOViewer(std::string title_name, int w, int h, bool startRunThread=true);
 	virtual ~PangolinDSOViewer();
 
 	void run();
