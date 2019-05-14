@@ -652,7 +652,7 @@ void server_run(ImageFolderReader* reader)
 			{
 				boost::filesystem::create_directory(dest);
 			}
-			ss << "/run" << i << ".pcd";
+			ss << "/run" << i-1 << ".pcd";
 			dest = ss.str();
 
 			boost::filesystem::rename(source.substr(0, fol_idx) + "repos/SLAM_IT/cal/dat/pcl/output.pcd", dest);
