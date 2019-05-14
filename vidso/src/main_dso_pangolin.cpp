@@ -451,6 +451,11 @@ void server_run(ImageFolderReader* reader)
 	size_t fol_idx = 1 + source.find_last_of('/');
 	server_folder = source.substr(fol_idx);
 	cout << "Server Started\n";
+	IOWrap::PangolinDSOViewer* viewer = 0;
+	if(!disableAllDisplay)
+	{
+		viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], true);
+	}
 	pcl::visualization::PCLVisualizer* cloud_viewer = 0;
 	if(usePCLView)
 	{
@@ -463,10 +468,9 @@ void server_run(ImageFolderReader* reader)
 		fullSystem->setGammaFunction(reader->getPhotometricGamma());
 		fullSystem->linearizeOperation = (playbackSpeed==0);
 
-		IOWrap::PangolinDSOViewer* viewer = 0;
 		if(!disableAllDisplay)
 		{
-			viewer = new IOWrap::PangolinDSOViewer("Current Run: " + std::to_string(curr), wG[0],hG[0], false);
+			//viewer->reset();
 			fullSystem->outputWrapper.push_back(viewer);
 		}
 
@@ -498,11 +502,16 @@ void server_run(ImageFolderReader* reader)
 			while(reader->getNumImages() == 0)
 			{
 				if(server_stop)
+				{
+					cout << "Exit now since run hasn't started\n";
 					exit(0);
+				}
 				usleep(100000);
 				reader->reloadDir();
 			}
 			printf("Images Received\nStarting DSO\n");
+
+			viewer->reset();
 
 			struct timeval tv_start;
 			gettimeofday(&tv_start, NULL);
@@ -576,10 +585,6 @@ void server_run(ImageFolderReader* reader)
 			struct timeval tv_end;
 			gettimeofday(&tv_end, NULL);
 
-			// doesnt actually close, just stops loop
-			if(viewer != 0)
-				viewer->close();
-
 			int numFramesProcessed = count;
 			double numSecondsProcessed = fabs(reader->getTimestamp(0)-reader->getTimestamp(count-1));
 			double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
@@ -601,7 +606,7 @@ void server_run(ImageFolderReader* reader)
 
 		if(viewer != 0)
 		{
-			viewer->run();
+			//viewer->run();
 		}
 		if(usePCLView)
 			pcl_run(cloud_viewer, pcl_wrap);
@@ -611,9 +616,11 @@ void server_run(ImageFolderReader* reader)
 
 		for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
 		{
-			ow->join();
-			cout << ow << endl;
-			delete ow;
+			if(ow != viewer)
+			{
+				ow->join();
+				delete ow;
+			}
 		}
 
 		printf("Run Complete!\n");
@@ -655,7 +662,9 @@ void server_run(ImageFolderReader* reader)
 		curr++;
 		usleep(1000000);
 	}
-
+	viewer->close();
+	viewer->join();
+	delete viewer;
 	delete reader;
 }
 
