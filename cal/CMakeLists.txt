@@ -44,7 +44,7 @@ add_executable (statistical_removal ${PROJECT_SOURCE_DIR}/src/outlier3.cpp)
 target_link_libraries (statistical_removal ${PCL_LIBRARIES})
 
 add_executable (fuse ${PROJECT_SOURCE_DIR}/src/iter_fuse.cpp)
-target_link_libraries (fuse fuselib ${PCL_LIBRARIES})
+target_link_libraries (fuse fuselib ${PCL_LIBRARIES} ${OpenCV_LIBS})
 
 add_executable (calib ${PROJECT_SOURCE_DIR}/src/camera_calibration.cpp)
 target_link_libraries (calib ${OpenCV_LIBS})

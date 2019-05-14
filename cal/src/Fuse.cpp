@@ -24,35 +24,7 @@
 #include <pcl/common/transforms.h>
 #include <pcl/registration/correspondence_rejection_sample_consensus.h>
 
-
-// constant values for testing
-extern int filt_type;
-extern int filt_N;
-extern float filt_R;
-extern int filt_N2;
-extern float filt_R2;
-extern int filt_K;
-extern float filt_T;
-extern float sift_ms;
-extern int sift_no;
-extern int sift_ns;
-extern int sift_mc;
-extern float sift_prct;
-extern float norm_r;
-extern float feat_r;
-extern float corr_v;
-extern bool extr_down;
-extern float extr_dres;
-extern float extr_nsz;
-extern float corr_eps;
-extern int corr_n;
-extern float extr_mksz;
-extern int keys_mode;
-extern float harr_rad;
-extern bool harr_maxs;
-extern bool harr_ref;
-extern float harr_tau;
-extern int feat_mode;
+#include "Fuse_help.h"
 
 using namespace std;
 
@@ -86,22 +58,22 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   {
     cout << "Original Size: " << cloud->points.size() << "\n";
   }
+  
   string filt_name = "";
   // Preprocess filtering
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr filt (new pcl::PointCloud<pcl::PointXYZRGB>);
-  if(filt_type == 1)
+  copyPointCloud(*cloud, *filt);
+  if((filt_type / 4) % 2 == 1)
   {
-    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
-    // build the filter
-    outrem.setInputCloud(cloud);
-    outrem.setRadiusSearch(filt_R);
-    outrem.setMinNeighborsInRadius (filt_N);
-    // apply filter
-    outrem.filter (*filt);
+    // Downsample
+    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+    sor.setInputCloud (filt);
+    sor.setLeafSize (filt_dres, filt_dres, filt_dres);
+    sor.filter (*filt);
 
-    filt_name = "Radius Filter";
+    filt_name = "Downsample";
   }
-  else if(filt_type == 2 || filt_type == 4)
+  if((filt_type / 2) % 2 == 1)
   {
     // Create the filtering object
     pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
@@ -110,21 +82,11 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
     sor.setStddevMulThresh (filt_T);
     sor.filter (*filt);
 
-    filt_name = "Statistical Filter";
+    if(filt_name.size() > 0)
+      filt_name = filt_name + "+";
+    filt_name = filt_name + "Statistical Filter";
   }
-  else
-  {
-    copyPointCloud(*cloud, *filt);
-  }
-  // downsample for testing
-  if(extr_down)
-  {
-    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-    sor.setInputCloud (filt);
-    sor.setLeafSize (extr_dres, extr_dres, extr_dres);
-    sor.filter (*filt);
-  }
-  if(filt_type == 3 || filt_type == 4)
+  if(filt_type % 2 == 1)
   {
     pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
     // build the filter
@@ -134,28 +96,14 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
     // apply filter
     outrem.filter (*filt);
 
-    if(filt_type == 4)
+    if(filt_name.size() > 0)
       filt_name = filt_name + "+";
     filt_name = filt_name + "Radius Filter";
   }
-  pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
-  // build the filter
-  outrem.setInputCloud(filt);
-  outrem.setRadiusSearch(filt_R2);
-  outrem.setMinNeighborsInRadius(filt_N2);
-  // apply filter
-  outrem.filter (*filt);
   
-  if(c_disp)
+  if(c_disp && filt_type != 0)
   {
-    if(!filt_name.empty())
-    {
-      if(extr_down)
-        cout << "Downsample+";
-      cout << filt_name << " Size: " << filt->points.size() << "\n";
-    }
-    else if(extr_down)
-      cout << "Downsample Size: " << filt->points.size() << "\n";
+    cout << filt_name << " Size: " << filt->points.size() << "\n";
   }
 
   // get normals
@@ -507,7 +455,7 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
   randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
   randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;
 
-  randtr(0, 0) = 1;       randtr(0, 1) = 0;         randtr(0, 2) = 0; randtr(0, 3) = 10*extr_dres;
+  randtr(0, 0) = 1;       randtr(0, 1) = 0;         randtr(0, 2) = 0; randtr(0, 3) = 1;
   randtr(1, 0) = 0;       randtr(1, 1) = 1;         randtr(1, 2) = 0; randtr(1, 3) = 0;
   randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
   randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;

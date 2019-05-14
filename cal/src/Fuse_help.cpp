@@ -2,7 +2,7 @@
 
 
 /* Filter */
-// filter type: 1 for radius, 2 for stat, 3 for Radius after downsample, 4 for stat then radius
+// filter type
 int filt_type = 0;
 // NUmber of neighbors required
 int filt_N = 0;//30
@@ -12,10 +12,8 @@ float filt_R = 0.02f;//0.08
 int filt_K = 100; // 30
 // variance threshold
 float filt_T = 0.08f; // 0.08
-// NUmber of neighbors required
-int filt_N2 = 0;//30
-// search radius
-float filt_R2 = 0.1f;//0.08
+// downsample res
+float filt_dres = 0.005f; // 0.01
 
 /*** Keypoint Detection ***/
 int keys_mode = 1;
@@ -55,10 +53,6 @@ int corr_n = 20;
 
 
 /* Extra Parameters */
-// downsample point cloud 2
-bool extr_down = true;
-// downsample res
-float extr_dres = 0.005f; // 0.01
 // normal display length
 float extr_nsz = 0.01;
 // keypoint sphere size
