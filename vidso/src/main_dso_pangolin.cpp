@@ -163,7 +163,7 @@ void settingsDefault(int preset)
 	{
 		printf("SERVER settings:\n"
 				"- Use newest frame\n"
-				"- 10000 active points\n"
+				"- 4000 active points\n"
 				"- 5-7 active frames\n"
 				"- 1-6 LM iteration each KF\n"
 				"- original image resolution\n"
@@ -175,8 +175,8 @@ void settingsDefault(int preset)
 		playbackSpeed = 0;
 		preload = false;
 		server = true;
-		setting_desiredImmatureDensity = 5000;
-		setting_desiredPointDensity = 10000;
+		setting_desiredImmatureDensity = 2500;
+		setting_desiredPointDensity = 4000;
 		setting_minFrames = 5;
 		setting_maxFrames = 7;
 		setting_maxOptIterations=6;
