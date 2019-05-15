@@ -86,9 +86,14 @@ virtual ~PCLWrapper()
 
 virtual void join()
 {
-	pcl::PCDWriter writer;
- 	writer.write<pcl::PointXYZRGB> ("../../cal/dat/pcl/output.pcd", *cloud, true);
-	printf("Write Point Cloud to file\n");
+	if(cloud->points.size() > 0)
+	{
+		pcl::PCDWriter writer;
+		writer.write<pcl::PointXYZRGB> ("../../cal/dat/pcl/output.pcd", *cloud, true);
+		printf("Write %lu Points to file\n", cloud->points.size());
+	}
+	else
+		printf("No points to write\n");
 }
 virtual void reset()
 {

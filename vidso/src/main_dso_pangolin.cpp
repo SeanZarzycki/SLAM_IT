@@ -1,3 +1,4 @@
+
 /**
 * This file is part of DSO.
 * 
@@ -29,6 +30,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <boost/filesystem.hpp>
 
 #include "IOWrapper/Output3DWrapper.h"
 #include "IOWrapper/ImageDisplay.h"
@@ -59,6 +61,7 @@ std::string gammaCalib = "";
 std::string source = "";
 std::string pose_source = "";
 std::string calib = "";
+std::string server_folder = "";
 double rescale = 1;
 bool reverse = false;
 bool disableROS = false;
@@ -73,7 +76,7 @@ bool usePCLOutput=false;
 bool usePCLView=false;
 bool server=false;
 bool dens_cloud=false;
-
+bool server_stop = false;
 
 int mode=0;
 
@@ -85,7 +88,13 @@ using namespace dso;
 void my_exit_handler(int s)
 {
 	printf("Caught signal %d\n",s);
-	exit(1);
+	if(!server)
+		exit(1);
+	else
+	{
+		server_stop = true;
+		cout << "Stopping Server after this run is complete\n";
+	}
 }
 
 void exitThread()
@@ -154,7 +163,7 @@ void settingsDefault(int preset)
 	{
 		printf("SERVER settings:\n"
 				"- Use newest frame\n"
-				"- 10000 active points\n"
+				"- 4000 active points\n"
 				"- 5-7 active frames\n"
 				"- 1-6 LM iteration each KF\n"
 				"- original image resolution\n"
@@ -166,8 +175,8 @@ void settingsDefault(int preset)
 		playbackSpeed = 0;
 		preload = false;
 		server = true;
-		setting_desiredImmatureDensity = 5000;
-		setting_desiredPointDensity = 10000;
+		setting_desiredImmatureDensity = 2500;
+		setting_desiredPointDensity = 4000;
 		setting_minFrames = 5;
 		setting_maxFrames = 7;
 		setting_maxOptIterations=6;
@@ -437,238 +446,78 @@ void parseArgument(char* arg)
 }
 
 
-int main( int argc, char** argv )
+void server_run(ImageFolderReader* reader)
 {
-	//setlocale(LC_ALL, "");
-	for(int i=1; i<argc;i++)
-		parseArgument(argv[i]);
-
-	// hook crtl+C.
-	boost::thread exThread = boost::thread(exitThread);
-
-
-	ImageFolderReader* reader = new ImageFolderReader(source,calib, gammaCalib, vignette);
-	reader->setGlobalCalibration();
-
-
-
-	if(setting_photometricCalibration > 0 && reader->getPhotometricGamma() == 0)
-	{
-		printf("ERROR: dont't have photometric calibation. Need to use commandline options mode=1 or mode=2 ");
-		exit(1);
-	}
-
-
-
-
-	int lstart=start;
-	int lend = end;
-	int linc = 1;
-	if(reverse)
-	{
-		printf("REVERSE!!!!");
-		lstart=end-1;
-		if(lstart >= reader->getNumImages())
-			lstart = reader->getNumImages()-1;
-		lend = start;
-		linc = -1;
-	}
-
-
-
-	FullSystem* fullSystem = new FullSystem();
-	fullSystem->setGammaFunction(reader->getPhotometricGamma());
-	fullSystem->linearizeOperation = (playbackSpeed==0);
-
-
-
-    if(useSampleOutput)
-        fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
-    if(useStdOutput)
-        fullSystem->outputWrapper.push_back(new IOWrap::CustomWrapper());
-	pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
-	IOWrap::PCLWrapper* pcl_wrap;
-	if(usePCLOutput)
-    {
-		if(usePCLView)
-		{
-			pcl::visualization::PCLVisualizer::Ptr tmp_view (new pcl::visualization::PCLVisualizer("DSO Viewer"));
-			cloud_viewer = tmp_view;
-			pcl_wrap = new IOWrap::PCLWrapper(cloud_viewer);
-		}
-		else
-			pcl_wrap = new IOWrap::PCLWrapper();
-		
-		pcl_wrap->setDense(dens_cloud);
-
-		fullSystem->outputWrapper.push_back(pcl_wrap);
-	}
-
+	size_t fol_idx = 1 + source.find_last_of('/');
+	server_folder = source.substr(fol_idx);
+	cout << "Server Started\n";
 	IOWrap::PangolinDSOViewer* viewer = 0;
 	if(!disableAllDisplay)
-    {
-        viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
-        fullSystem->outputWrapper.push_back(viewer);
-    }
+	{
+		viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], true);
+	}
+	pcl::visualization::PCLVisualizer* cloud_viewer = 0;
+	if(usePCLView)
+	{
+		cloud_viewer = new pcl::visualization::PCLVisualizer("DSO Viewer");
+	}
+	int curr = 1;
+	while(!server_stop)
+	{
+		FullSystem* fullSystem = new FullSystem();
+		fullSystem->setGammaFunction(reader->getPhotometricGamma());
+		fullSystem->linearizeOperation = (playbackSpeed==0);
 
-    std::thread runthread([&]() {
-        std::vector<int> idsToPlay;
-        std::vector<double> timesToPlayAt;
-		
-		if(server)
+		if(!disableAllDisplay)
 		{
-			printf("Server Started!\nAwaiting images\n");
+			//viewer->reset();
+			fullSystem->outputWrapper.push_back(viewer);
+		}
+
+		if(useSampleOutput)
+			fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
+		if(useStdOutput)
+			fullSystem->outputWrapper.push_back(new IOWrap::CustomWrapper());
+		pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
+		IOWrap::PCLWrapper* pcl_wrap;
+		if(usePCLOutput)
+		{
+			if(usePCLView)
+			{
+				pcl_wrap = new IOWrap::PCLWrapper(cloud_viewer);
+			}
+			else
+				pcl_wrap = new IOWrap::PCLWrapper();
+			
+			pcl_wrap->setDense(dens_cloud);
+
+			fullSystem->outputWrapper.push_back(pcl_wrap);
+		}
+
+		std::thread runthread([&]() {
+			std::vector<int> idsToPlay;
+			std::vector<double> timesToPlayAt;
+			
+			printf("Awaiting images\n");
 			while(reader->getNumImages() == 0)
 			{
+				if(server_stop)
+				{
+					cout << "Exit now since run hasn't started\n";
+					exit(0);
+				}
 				usleep(100000);
 				reader->reloadDir();
 			}
 			printf("Images Received\nStarting DSO\n");
-		}
 
-        if(!server)
-			for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
-			{
-				idsToPlay.push_back(i);
-				if(timesToPlayAt.size() == 0)
-				{
-					timesToPlayAt.push_back((double)0);
-				}
-				else
-				{
-					double tsThis = reader->getTimestamp(idsToPlay[idsToPlay.size()-1]);
-					double tsPrev = reader->getTimestamp(idsToPlay[idsToPlay.size()-2]);
-					timesToPlayAt.push_back(timesToPlayAt.back() +  fabs(tsThis-tsPrev)/playbackSpeed);
-				}
-			}
+			viewer->reset();
 
+			struct timeval tv_start;
+			gettimeofday(&tv_start, NULL);
+			clock_t started = clock();
+			double sInitializerOffset=0;
 
-        std::vector<ImageAndExposure*> preloadedImages;
-        if(preload)
-        {
-            printf("LOADING ALL IMAGES!\n");
-            for(int ii=0;ii<(int)idsToPlay.size(); ii++)
-            {
-                int i = idsToPlay[ii];
-                preloadedImages.push_back(reader->getImage(i));
-            }
-        }
-
-        struct timeval tv_start;
-        gettimeofday(&tv_start, NULL);
-        clock_t started = clock();
-        double sInitializerOffset=0;
-
-		if(!server)
-		{
-			for(int ii=0;ii<(int)idsToPlay.size(); ii++)
-			{
-				if(!fullSystem->initialized)	// if not initialized: reset start time.
-				{
-					gettimeofday(&tv_start, NULL);
-					started = clock();
-					sInitializerOffset = timesToPlayAt[ii];
-				}
-
-				int i = idsToPlay[ii];
-
-
-				ImageAndExposure* img;
-				if(preload)
-					img = preloadedImages[ii];
-				else
-					img = reader->getImage(i);
-
-				bool skipFrame=false;
-				if(playbackSpeed!=0)
-				{
-					struct timeval tv_now; gettimeofday(&tv_now, NULL);
-					double sSinceStart = sInitializerOffset + ((tv_now.tv_sec-tv_start.tv_sec) + (tv_now.tv_usec-tv_start.tv_usec)/(1000.0f*1000.0f));
-
-					if(sSinceStart < timesToPlayAt[ii])
-						usleep((int)((timesToPlayAt[ii]-sSinceStart)*1000*1000));
-					else if(sSinceStart > timesToPlayAt[ii]+0.5+0.1*(ii%2))
-					{
-						printf("SKIPFRAME %d (play at %f, now it is %f)!\n", ii, timesToPlayAt[ii], sSinceStart);
-						skipFrame=true;
-					}
-				}
-
-
-
-				if(!skipFrame) fullSystem->addActiveFrame(img, i);
-
-
-
-
-				delete img;
-
-				if(fullSystem->initFailed || setting_fullResetRequested)
-				{
-					if(ii < 250 || setting_fullResetRequested)
-					{
-						printf("RESETTING!\n");
-
-						std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
-						delete fullSystem;
-
-						for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
-
-						fullSystem = new FullSystem();
-						fullSystem->setGammaFunction(reader->getPhotometricGamma());
-						fullSystem->linearizeOperation = (playbackSpeed==0);
-
-
-						fullSystem->outputWrapper = wraps;
-
-						setting_fullResetRequested=false;
-					}
-				}
-
-				if(fullSystem->isLost)
-				{
-						printf("LOST!!\n");
-						break;
-				}
-
-			}
-
-			fullSystem->blockUntilMappingIsFinished();
-			clock_t ended = clock();
-			struct timeval tv_end;
-			gettimeofday(&tv_end, NULL);
-
-			fullSystem->printResult("result.txt");
-
-			int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());
-			double numSecondsProcessed = fabs(reader->getTimestamp(idsToPlay[0])-reader->getTimestamp(idsToPlay.back()));
-			double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
-			double MilliSecondsTakenMT = sInitializerOffset + ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f);
-			printf("\n======================"
-					"\n%d Frames (%.1f fps)"
-					"\n%.2fms per frame (single core); "
-					"\n%.2fms per frame (multi core); "
-					"\n%.3fx (single core); "
-					"\n%.3fx (multi core); "
-					"\n======================\n\n",
-					numFramesProcessed, numFramesProcessed/numSecondsProcessed,
-					MilliSecondsTakenSingle/numFramesProcessed,
-					MilliSecondsTakenMT / (float)numFramesProcessed,
-					1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
-					1000 / (MilliSecondsTakenMT / numSecondsProcessed));
-			
-			if(setting_logStuff)
-			{
-				std::ofstream tmlog;
-				tmlog.open("logs/time.txt", std::ios::trunc | std::ios::out);
-				tmlog << 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC*reader->getNumImages()) << " "
-					<< ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f) / (float)reader->getNumImages() << "\n";
-				tmlog.flush();
-				tmlog.close();
-			}
-		}
-		else
-		{
 			int last_file = -1;
 			int count = 0;
 			bool run_server = true;
@@ -731,7 +580,6 @@ int main( int argc, char** argv )
 				reader->reloadDir();
 				usleep(wait_time);
 			}
-
 			fullSystem->blockUntilMappingIsFinished();
 			clock_t ended = clock();
 			struct timeval tv_end;
@@ -753,31 +601,419 @@ int main( int argc, char** argv )
 					MilliSecondsTakenMT / (float)numFramesProcessed,
 					1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
 					1000 / (MilliSecondsTakenMT / numSecondsProcessed));
+		});
+
+
+		if(viewer != 0)
+		{
+			//viewer->run();
 		}
-    });
+		if(usePCLView)
+			pcl_run(cloud_viewer, pcl_wrap);
 
 
-    if(viewer != 0)
-        viewer->run();
-	if(usePCLView)
-        pcl_run(cloud_viewer, pcl_wrap);
+		runthread.join();
+
+		for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
+		{
+			if(ow != viewer)
+			{
+				ow->join();
+				delete ow;
+			}
+		}
+
+		printf("Run Complete!\n");
+		delete fullSystem;
 
 
-    runthread.join();
+		// move files to storage
+		fol_idx = 0;
+		for(int i = 0;i < 2;i++)
+			fol_idx = 1 + source.find('/', fol_idx+1);
+		std::string dest = source.substr(0, fol_idx) + "data/Server/" + server_folder + "/run1";
+		int i = 1;
+		for (i = 2; boost::filesystem::exists(dest) && i < 100; ++i)
+		{
+			std::stringstream ss;
+			ss << source.substr(0, fol_idx) + "data/Server/" << server_folder << "/run" << i;
+			dest = ss.str();
+		}
+		cout << "Saved images to " << dest << endl;
+		boost::filesystem::rename(source, dest);
+		boost::filesystem::create_directory(source);
+		// rename pcd file
+		if(boost::filesystem::exists(source.substr(0, fol_idx) + "repos/SLAM_IT/cal/dat/pcl/output.pcd"))
+		{
+			std::stringstream ss;
+			ss << source.substr(0, fol_idx) + "repos/SLAM_IT/cal/dat/" << server_folder;
+			dest = ss.str();
+			if(!boost::filesystem::exists(dest))
+			{
+				boost::filesystem::create_directory(dest);
+			}
+			ss << "/run" << i << ".pcd";
+			dest = ss.str();
 
-	for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
+			boost::filesystem::rename(source.substr(0, fol_idx) + "repos/SLAM_IT/cal/dat/pcl/output.pcd", dest);
+		}
+
+		reader->reloadDir();
+		curr++;
+		usleep(1000000);
+	}
+	viewer->close();
+	viewer->join();
+	delete viewer;
+	delete reader;
+}
+
+int main( int argc, char** argv )
+{
+	//setlocale(LC_ALL, "");
+	for(int i=1; i<argc;i++)
+		parseArgument(argv[i]);
+
+	// hook crtl+C.
+	boost::thread exThread = boost::thread(exitThread);
+
+
+	ImageFolderReader* reader = new ImageFolderReader(source,calib, gammaCalib, vignette);
+	reader->setGlobalCalibration();
+
+
+
+	if(setting_photometricCalibration > 0 && reader->getPhotometricGamma() == 0)
 	{
-		ow->join();
-		delete ow;
+		printf("ERROR: dont't have photometric calibation. Need to use commandline options mode=1 or mode=2 ");
+		exit(1);
 	}
 
 
 
-	printf("DELETE FULLSYSTEM!\n");
-	delete fullSystem;
 
-	printf("DELETE READER!\n");
-	delete reader;
+	int lstart=start;
+	int lend = end;
+	int linc = 1;
+	if(reverse)
+	{
+		printf("REVERSE!!!!");
+		lstart=end-1;
+		if(lstart >= reader->getNumImages())
+			lstart = reader->getNumImages()-1;
+		lend = start;
+		linc = -1;
+	}
+
+	if(server)
+	{
+		server_run(reader);
+	}
+	else
+	{
+		FullSystem* fullSystem = new FullSystem();
+		fullSystem->setGammaFunction(reader->getPhotometricGamma());
+		fullSystem->linearizeOperation = (playbackSpeed==0);
+
+
+
+		if(useSampleOutput)
+			fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
+		if(useStdOutput)
+			fullSystem->outputWrapper.push_back(new IOWrap::CustomWrapper());
+		pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
+		IOWrap::PCLWrapper* pcl_wrap;
+		if(usePCLOutput)
+		{
+			if(usePCLView)
+			{
+				pcl::visualization::PCLVisualizer::Ptr tmp_view (new pcl::visualization::PCLVisualizer("DSO Viewer"));
+				cloud_viewer = tmp_view;
+				pcl_wrap = new IOWrap::PCLWrapper(cloud_viewer);
+			}
+			else
+				pcl_wrap = new IOWrap::PCLWrapper();
+			
+			pcl_wrap->setDense(dens_cloud);
+
+			fullSystem->outputWrapper.push_back(pcl_wrap);
+		}
+
+		IOWrap::PangolinDSOViewer* viewer = 0;
+		if(!disableAllDisplay)
+		{
+			viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], false);
+			fullSystem->outputWrapper.push_back(viewer);
+		}
+
+		std::thread runthread([&]() {
+			std::vector<int> idsToPlay;
+			std::vector<double> timesToPlayAt;
+			
+			if(server)
+			{
+				printf("Server Started!\nAwaiting images\n");
+				while(reader->getNumImages() == 0)
+				{
+					usleep(100000);
+					reader->reloadDir();
+				}
+				printf("Images Received\nStarting DSO\n");
+			}
+
+			if(!server)
+				for(int i=lstart;i>= 0 && i< reader->getNumImages() && linc*i < linc*lend;i+=linc)
+				{
+					idsToPlay.push_back(i);
+					if(timesToPlayAt.size() == 0)
+					{
+						timesToPlayAt.push_back((double)0);
+					}
+					else
+					{
+						double tsThis = reader->getTimestamp(idsToPlay[idsToPlay.size()-1]);
+						double tsPrev = reader->getTimestamp(idsToPlay[idsToPlay.size()-2]);
+						timesToPlayAt.push_back(timesToPlayAt.back() +  fabs(tsThis-tsPrev)/playbackSpeed);
+					}
+				}
+
+
+			std::vector<ImageAndExposure*> preloadedImages;
+			if(preload)
+			{
+				printf("LOADING ALL IMAGES!\n");
+				for(int ii=0;ii<(int)idsToPlay.size(); ii++)
+				{
+					int i = idsToPlay[ii];
+					preloadedImages.push_back(reader->getImage(i));
+				}
+			}
+
+			struct timeval tv_start;
+			gettimeofday(&tv_start, NULL);
+			clock_t started = clock();
+			double sInitializerOffset=0;
+
+			if(!server)
+			{
+				for(int ii=0;ii<(int)idsToPlay.size(); ii++)
+				{
+					if(!fullSystem->initialized)	// if not initialized: reset start time.
+					{
+						gettimeofday(&tv_start, NULL);
+						started = clock();
+						sInitializerOffset = timesToPlayAt[ii];
+					}
+
+					int i = idsToPlay[ii];
+
+
+					ImageAndExposure* img;
+					if(preload)
+						img = preloadedImages[ii];
+					else
+						img = reader->getImage(i);
+
+					bool skipFrame=false;
+					if(playbackSpeed!=0)
+					{
+						struct timeval tv_now; gettimeofday(&tv_now, NULL);
+						double sSinceStart = sInitializerOffset + ((tv_now.tv_sec-tv_start.tv_sec) + (tv_now.tv_usec-tv_start.tv_usec)/(1000.0f*1000.0f));
+
+						if(sSinceStart < timesToPlayAt[ii])
+							usleep((int)((timesToPlayAt[ii]-sSinceStart)*1000*1000));
+						else if(sSinceStart > timesToPlayAt[ii]+0.5+0.1*(ii%2))
+						{
+							printf("SKIPFRAME %d (play at %f, now it is %f)!\n", ii, timesToPlayAt[ii], sSinceStart);
+							skipFrame=true;
+						}
+					}
+
+
+
+					if(!skipFrame) fullSystem->addActiveFrame(img, i);
+
+
+
+
+					delete img;
+
+					if(fullSystem->initFailed || setting_fullResetRequested)
+					{
+						if(ii < 250 || setting_fullResetRequested)
+						{
+							printf("RESETTING!\n");
+
+							std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+							delete fullSystem;
+
+							for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+
+							fullSystem = new FullSystem();
+							fullSystem->setGammaFunction(reader->getPhotometricGamma());
+							fullSystem->linearizeOperation = (playbackSpeed==0);
+
+
+							fullSystem->outputWrapper = wraps;
+
+							setting_fullResetRequested=false;
+						}
+					}
+
+					if(fullSystem->isLost)
+					{
+							printf("LOST!!\n");
+							break;
+					}
+
+				}
+
+				fullSystem->blockUntilMappingIsFinished();
+				clock_t ended = clock();
+				struct timeval tv_end;
+				gettimeofday(&tv_end, NULL);
+
+				fullSystem->printResult("result.txt");
+
+				int numFramesProcessed = abs(idsToPlay[0]-idsToPlay.back());
+				double numSecondsProcessed = fabs(reader->getTimestamp(idsToPlay[0])-reader->getTimestamp(idsToPlay.back()));
+				double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
+				double MilliSecondsTakenMT = sInitializerOffset + ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f);
+				printf("\n======================"
+						"\n%d Frames (%.1f fps)"
+						"\n%.2fms per frame (single core); "
+						"\n%.2fms per frame (multi core); "
+						"\n%.3fx (single core); "
+						"\n%.3fx (multi core); "
+						"\n======================\n\n",
+						numFramesProcessed, numFramesProcessed/numSecondsProcessed,
+						MilliSecondsTakenSingle/numFramesProcessed,
+						MilliSecondsTakenMT / (float)numFramesProcessed,
+						1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
+						1000 / (MilliSecondsTakenMT / numSecondsProcessed));
+				
+				if(setting_logStuff)
+				{
+					std::ofstream tmlog;
+					tmlog.open("logs/time.txt", std::ios::trunc | std::ios::out);
+					tmlog << 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC*reader->getNumImages()) << " "
+						<< ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f) / (float)reader->getNumImages() << "\n";
+					tmlog.flush();
+					tmlog.close();
+				}
+			}
+			else
+			{
+				int last_file = -1;
+				int count = 0;
+				bool run_server = true;
+				int stime = 0;
+				int wait_time = 100000;
+
+				while(run_server)
+				{
+					if(last_file < reader->getNumImages() - 1)
+					{
+						last_file = reader->getNumImages() - 1;
+
+						if(fullSystem->initFailed || setting_fullResetRequested)
+						{
+							printf("RESETTING!\n");
+
+							std::vector<IOWrap::Output3DWrapper*> wraps = fullSystem->outputWrapper;
+							delete fullSystem;
+
+							for(IOWrap::Output3DWrapper* ow : wraps) ow->reset();
+
+							fullSystem = new FullSystem();
+							fullSystem->setGammaFunction(reader->getPhotometricGamma());
+							fullSystem->linearizeOperation = (playbackSpeed==0);
+
+
+							fullSystem->outputWrapper = wraps;
+
+							setting_fullResetRequested=false;
+						}
+						if(fullSystem->isLost)
+						{
+							printf("LOST!!\n");
+							break;
+						}
+						
+						ImageAndExposure* img = reader->getImage(last_file);
+						fullSystem->addActiveFrame(img, last_file);
+						delete img;
+
+						//printf("Found Image %d\n", count);
+
+						count++;
+						stime = 0;
+					}
+					else if(stime * wait_time > 10 * 1000000.0)
+					{
+						// stop server if no new images have come in
+						run_server = false;
+						printf("No new images detected\nBeginning shutdown\n");
+					}
+					else
+					{
+						stime++;
+					}
+
+					//printf("Waited: %f\nCurrently %d files\n", stime * wait_time / 1000000.0, reader->getNumImages());
+
+					// reload directory
+					reader->reloadDir();
+					usleep(wait_time);
+				}
+
+				fullSystem->blockUntilMappingIsFinished();
+				clock_t ended = clock();
+				struct timeval tv_end;
+				gettimeofday(&tv_end, NULL);
+
+				int numFramesProcessed = count;
+				double numSecondsProcessed = fabs(reader->getTimestamp(0)-reader->getTimestamp(count-1));
+				double MilliSecondsTakenSingle = 1000.0f*(ended-started)/(float)(CLOCKS_PER_SEC);
+				double MilliSecondsTakenMT = sInitializerOffset + ((tv_end.tv_sec-tv_start.tv_sec)*1000.0f + (tv_end.tv_usec-tv_start.tv_usec)/1000.0f);
+				printf("\n======================"
+						"\n%d Frames (%.1f fps)"
+						"\n%.2fms per frame (single core); "
+						"\n%.2fms per frame (multi core); "
+						"\n%.3fx (single core); "
+						"\n%.3fx (multi core); "
+						"\n======================\n\n",
+						numFramesProcessed, numFramesProcessed/numSecondsProcessed,
+						MilliSecondsTakenSingle/numFramesProcessed,
+						MilliSecondsTakenMT / (float)numFramesProcessed,
+						1000 / (MilliSecondsTakenSingle/numSecondsProcessed),
+						1000 / (MilliSecondsTakenMT / numSecondsProcessed));
+			}
+		});
+
+
+		if(viewer != 0)
+			viewer->run();
+		if(usePCLView)
+			pcl_run(cloud_viewer, pcl_wrap);
+
+
+		runthread.join();
+
+		for(IOWrap::Output3DWrapper* ow : fullSystem->outputWrapper)
+		{
+			ow->join();
+			delete ow;
+		}
+
+
+
+		printf("DELETE FULLSYSTEM!\n");
+		delete fullSystem;
+
+		printf("DELETE READER!\n");
+		delete reader;
+	}
 
 	printf("EXIT NOW!\n");
 	return 0;

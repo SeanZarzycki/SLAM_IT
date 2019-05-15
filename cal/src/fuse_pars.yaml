@@ -1,0 +1,70 @@
+%YAML:1.0
+iterate:
+  - var : ["keypoints", "Harris", "r"]
+    a   : 0.01
+    b   : 0.25
+    n   : 25
+
+  - var : ["filter", "Down", "res"]
+    a   : 0.005
+    b   : 0.01
+    n   : 6
+
+filter:
+  mode: [Down, Radius]
+  types:
+    - name: Radius
+      v   : 1
+    - name: Stat
+      v   : 2
+    - name: Down
+      v   : 4
+  
+  Radius:
+    n: 30
+    r: 0.02
+  Stat:
+    K: 100
+    T: 0.08
+  Down:
+    res: 0.005
+
+keypoints:
+  mode: "Harris"
+  types:
+    - name: SIFT
+      v   : 1
+    - name: Harris
+      v   : 2
+  
+  SIFT:
+    min scale   : 0.3
+    octaves     : 8
+    scales      : 10
+    min contrast: 0.0001
+    prctile     : 0.5
+  Harris:
+    r       : 0.1
+    t       : 0.0
+    max_sup : True
+    refine  : True
+
+normals:
+  r: 0.1
+
+features:
+  mode: "FPFH"
+  types:
+    - name: FPFH
+      v   : 0
+    - name: GASD
+      v   : 1
+
+  FPFH:
+    r: 0.2
+  GASD:
+    r: 0.2
+
+correlate:
+  eps : 0.1
+  n   : 20
