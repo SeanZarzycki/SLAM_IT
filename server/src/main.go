@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
@@ -8,13 +9,19 @@ import (
 	"image/jpeg"
 	"io/ioutil"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
 	"strings"
 )
 
-const ImageDir = "./images/"
+const (
+	ConnHost = "localhost"
+	ConnPort = "8081"
+	ConnType = "tcp"
+	ImageDir = "./images/"
+)
 
 type Message struct {
 	ImageBase64 string
@@ -90,7 +97,57 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	// jsonEnc.Encode(&m)
 }
 
+func handleRequest(c net.Conn) {
+	for {
+		netData, err := bufio.NewReader(c).ReadString('\n')
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		m := Message{}
+
+		err = json.Unmarshal([]byte(netData), &m)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		base64Dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(m.ImageBase64))
+		imgBody, _ := ioutil.ReadAll(base64Dec)
+		_, err = jpeg.Decode(bytes.NewReader(imgBody))
+		if err != nil {
+			log.Println(err)
+		}
+		addr := strings.Split(c.RemoteAddr().String(), ":")
+		ip := addr[0]
+		dir := ImageDir + ip
+		dirExists, _ := exists(dir)
+		if !dirExists {
+			os.MkdirAll(dir, 0777)
+		}
+
+		filename := uint2jpegfile(highestFileNameValue(dir) + 1)
+
+		path := dir + "/" + filename
+		log.Println("Writing to " + path)
+		ioutil.WriteFile(path, imgBody, 0664)
+	}
+}
+
 func main() {
-	http.HandleFunc("/upload", handler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	l, err := net.Listen(ConnType, ":8081")
+	if err != nil {
+		fmt.Println("Error listening:", err.Error())
+		os.Exit(1)
+	}
+	defer l.Close()
+	fmt.Println("Listening on " + ConnHost + ":" + ConnPort)
+	for {
+		conn, err := l.Accept()
+		if err != nil {
+			fmt.Println("Error accepting: ", err.Error())
+			os.Exit(1)
+		}
+		go handleRequest(conn)
+	}
 }
