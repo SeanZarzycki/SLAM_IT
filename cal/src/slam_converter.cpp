@@ -11,8 +11,8 @@ main (int argc, char** argv)
     string filename1 = argv[1];
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::io::loadPCDFile ("../dat/pcl/" + filename1 + ".pcd", *cloud);
-    string filename2 = argv[1];
-    ofstream out_file ("../dat/mobile/" + filename2 + ".txt", ofstream::out);
+    string filename2 = argc < 3 ? argv[1] : argv[2];
+    ofstream out_file ("../dat/ascii/" + filename2 + ".txt", ofstream::out);
     for (size_t i=0; i<cloud->points.size();i++)
     {
         pcl::PointXYZRGB p = cloud->points[i];
