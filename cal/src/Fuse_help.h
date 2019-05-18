@@ -1,12 +1,14 @@
 
 
 // constant values for testing
-extern int filt_type;
+extern std::vector<int> filt_type;
+extern std::vector<float> filt_lims;
 extern int filt_N;
 extern float filt_R;
 extern int filt_K;
 extern float filt_T;
 extern float filt_dres;
+extern int filt_keyn;
 extern float sift_ms;
 extern int sift_no;
 extern int sift_ns;
@@ -22,6 +24,8 @@ extern int feat_mode;
 extern float feat_r;
 extern float corr_eps;
 extern int corr_n;
+
+extern Eigen::Matrix4f randtr;
 
 extern float extr_nsz;
 extern float extr_mksz;

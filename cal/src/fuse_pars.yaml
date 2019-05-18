@@ -1,59 +1,65 @@
 %YAML:1.0
 iterate:
-  - var : ["keypoints", "Harris", "r"]
+  - var : [keypoints,Harris,r]
     a   : 0.01
     b   : 0.25
     n   : 25
 
-  - var : ["filter", "Down", "res"]
+  - var : [filter,Down,res]
     a   : 0.005
     b   : 0.01
     n   : 6
 
 filter:
-  mode: [Down, Radius]
+  mode: [Bound, Down, Radius]
   types:
     - name: Radius
       v   : 1
     - name: Stat
       v   : 2
     - name: Down
+      v   : 3
+    - name: Bound
       v   : 4
   
   Radius:
-    n: 30
-    r: 0.02
+    n: 250
+    r: 0.1
   Stat:
     K: 100
-    T: 0.08
+    T: 0.1
   Down:
     res: 0.005
+  Bound:
+    x: [-25, 25]
+    y: [-25, 25]
+    z: [-25, 25]
+
+normals:
+  r: 0.05
 
 keypoints:
-  mode: "Harris"
+  mode: SIFT
   types:
     - name: SIFT
       v   : 1
     - name: Harris
       v   : 2
-  
+
   SIFT:
-    min scale   : 0.3
+    min scale   : 0.1
     octaves     : 8
     scales      : 10
     min contrast: 0.0001
-    prctile     : 0.5
+    prctile     : 0.8
   Harris:
     r       : 0.1
     t       : 0.0
     max_sup : True
     refine  : True
 
-normals:
-  r: 0.1
-
 features:
-  mode: "FPFH"
+  mode: FPFH
   types:
     - name: FPFH
       v   : 0
@@ -61,10 +67,26 @@ features:
       v   : 1
 
   FPFH:
-    r: 0.2
+    r: 0.1
   GASD:
-    r: 0.2
+    r: 0.1
 
 correlate:
   eps : 0.1
   n   : 20
+
+
+
+transform:
+  select: 1
+  T:
+    - name: I
+      rows: 4
+      cols: 4
+      dt: d
+      data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    - name: R
+      rows: 4
+      cols: 4
+      dt: d
+      data: [0.866025, 0.5, 0, 0, 0.5, -0.866025, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

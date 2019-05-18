@@ -1,9 +1,11 @@
 /* Hyper Parameters for Fusion */
-
+#include <vector>
 
 /* Filter */
 // filter type
-int filt_type = 0;
+std::vector<int> filt_type;
+// bound filter limits
+std::vector<float> filt_lims = {-5, 5, -5, 5, -5, 5};
 // NUmber of neighbors required
 int filt_N = 0;//30
 // search radius

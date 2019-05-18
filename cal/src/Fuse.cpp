@@ -10,6 +10,7 @@
 #include <pcl/io/io.h>
 
 // fusion requirements
+#include <pcl/filters/conditional_removal.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/filters/radius_outlier_removal.h>
@@ -63,48 +64,89 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   // Preprocess filtering
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr filt (new pcl::PointCloud<pcl::PointXYZRGB>);
   copyPointCloud(*cloud, *filt);
-  if((filt_type / 4) % 2 == 1)
+  for(size_t k = 0;k < filt_type.size();k++)
   {
-    // Downsample
-    pcl::VoxelGrid<pcl::PointXYZRGB> sor;
-    sor.setInputCloud (filt);
-    sor.setLeafSize (filt_dres, filt_dres, filt_dres);
-    sor.filter (*filt);
+    if(filt_type[k] == 4)
+    {
+      // limit bounds of point cloud
+      pcl::ConditionAnd<pcl::PointXYZRGB>::Ptr range_cond (new pcl::ConditionAnd<pcl::PointXYZRGB> ());
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("x", pcl::ComparisonOps::GT, filt_lims[0])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("x", pcl::ComparisonOps::LT, filt_lims[1])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("y", pcl::ComparisonOps::GT, filt_lims[2])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("y", pcl::ComparisonOps::LT, filt_lims[3])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("z", pcl::ComparisonOps::GT, filt_lims[4])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("z", pcl::ComparisonOps::LT, filt_lims[5])));
+      // build the filter
+      pcl::ConditionalRemoval<pcl::PointXYZRGB> condrem;
+      condrem.setCondition (range_cond);
+      condrem.setInputCloud(filt);
+      condrem.setKeepOrganized(false);
+      // apply filter
+      condrem.filter(*filt);
 
-    filt_name = "Downsample";
-  }
-  if((filt_type / 2) % 2 == 1)
-  {
-    // Create the filtering object
-    pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
-    sor.setInputCloud (cloud);
-    sor.setMeanK (filt_K);
-    sor.setStddevMulThresh (filt_T);
-    sor.filter (*filt);
+      if(c_disp)
+        cout << "After Bound Filter: " << filt->points.size() << endl;
 
-    if(filt_name.size() > 0)
-      filt_name = filt_name + "+";
-    filt_name = filt_name + "Statistical Filter";
-  }
-  if(filt_type % 2 == 1)
-  {
-    pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
-    // build the filter
-    outrem.setInputCloud(filt);
-    outrem.setRadiusSearch(filt_R);
-    outrem.setMinNeighborsInRadius(filt_N);
-    // apply filter
-    outrem.filter (*filt);
+      if(filt_name.size() > 0)
+        filt_name = filt_name + "+";
+      filt_name = filt_name + "Bound Filter";
+    }
+    if(filt_type[k] == 2)
+    {
+      // Create the filtering object
+      pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
+      sor.setInputCloud (filt);
+      sor.setMeanK (filt_K);
+      sor.setStddevMulThresh (filt_T);
+      sor.filter (*filt);
 
-    if(filt_name.size() > 0)
-      filt_name = filt_name + "+";
-    filt_name = filt_name + "Radius Filter";
+      if(c_disp)
+        cout << "After Statistical: " << filt->points.size() << endl;
+
+      if(filt_name.size() > 0)
+        filt_name = filt_name + "+";
+      filt_name = filt_name + "Statistical Filter";
+    }
+    if(filt_type[k] == 1)
+    {
+      pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
+      // build the filter
+      outrem.setInputCloud(filt);
+      outrem.setRadiusSearch(filt_R);
+      outrem.setMinNeighborsInRadius(filt_N);
+      // apply filter
+      outrem.filter (*filt);
+      
+      if(c_disp)
+        cout << "After Radius: " << filt->points.size() << endl;
+
+      if(filt_name.size() > 0)
+        filt_name = filt_name + "+";
+      filt_name = filt_name + "Radius Filter";
+    }
+    if(filt_type[k] == 3)
+    {
+      // Downsample
+      pcl::VoxelGrid<pcl::PointXYZRGB> sor;
+      sor.setInputCloud (filt);
+      sor.setLeafSize (filt_dres, filt_dres, filt_dres);
+      sor.filter (*filt);
+
+      if(c_disp)
+        cout << "After Downsample: " << filt->points.size() << endl;
+
+      if(filt_name.size() > 0)
+        filt_name = filt_name + "+";
+      filt_name = filt_name + "Downsample";
+    }
   }
   
+  /*
   if(c_disp && filt_type != 0)
   {
     cout << filt_name << " Size: " << filt->points.size() << "\n";
   }
+  */
 
   // get normals
   //pcl::PointCloud<pcl::Normal>::Ptr norms (new pcl::PointCloud<pcl::Normal>);
@@ -120,7 +162,7 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   vector<float> sift_vals;
   if(!ext_points)
   {
-    if(keys_mode == 0)
+    if(keys_mode == 1)
     {
       // SIFT
       pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
@@ -142,7 +184,7 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
       sift_vals.resize(results->size());
       for(size_t j = 0;j < results->size();j++)
         sift_vals[j] = results->points[j].scale;
-      sort(sift_vals.begin(), sift_vals.end());
+      std::sort(sift_vals.begin(), sift_vals.end());
       int ind = sift_vals.size() * sift_prct;
       float prctile = sift_vals[ind];
       pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
@@ -158,7 +200,7 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
       extract.filter (*results);
       pcl::copyPointCloud (*results, *keys);
     }
-    else if(keys_mode == 1)
+    else if(keys_mode == 2)
     {
       // Harris
       pcl::HarrisKeypoint3D<pcl::PointXYZRGB, pcl::PointXYZI, pcl::Normal> harr (pcl::HarrisKeypoint3D<pcl::PointXYZRGB, pcl::PointXYZI, pcl::Normal>::ResponseMethod::HARRIS, harr_rad, harr_tau);
@@ -173,7 +215,8 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
       pcl::copyPointCloud (result, *keys);
     }
   }
-  cout << "Keypoints: " << keys->points.size() << endl;
+  if(c_disp)
+    cout << "Keypoints: " << keys->points.size() << endl;
 
   // get features
   if(feat_mode == 0)
@@ -184,7 +227,7 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
     fpfh_est.setRadiusSearch (feat_r);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr keys_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::copyPointCloud (*keys, *keys_rgb);
-    fpfh_est.setSearchSurface (filt); // possibly use raw cloud instead
+    fpfh_est.setSearchSurface (filt);//(filt); // possibly use raw cloud instead
     fpfh_est.setInputNormals (norms);  
     fpfh_est.setInputCloud (keys_rgb);
     fpfh_est.compute (*feats);
@@ -197,7 +240,7 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   if(show_filt)
     copyPointCloud(*filt, *cloud);
 }
-Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &ms, pcl::PointCloud<pcl::PointXYZ>::Ptr &md, FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd)
+void match_fpfh(FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd, pcl::CorrespondencesPtr corr)
 {
   pcl::KdTreeFLANN<pcl::FPFHSignature33> descriptor_kdtree;
   descriptor_kdtree.setInputCloud (fd);
@@ -217,13 +260,13 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &
 
   // eliminate multi matches
   vector<bool> ck1, ck2, ck3;
-  ck1.resize(md->size());
-  ck2.resize(md->size());
+  ck1.resize(fd->size());
+  ck2.resize(fd->size());
   ck3.resize(corr->size());
   for(size_t i = 0;i < corr->size();i++)
   {
     size_t ind = corr->at(i).index_query;
-    if(ind < md->size())
+    if(ind < fd->size())
       if(ck1[ind])
         ck2[ind] = true;
       else
@@ -258,6 +301,9 @@ Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &
     }
   }
   corr = temp;
+}
+Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &ms, pcl::PointCloud<pcl::PointXYZ>::Ptr &md, pcl::CorrespondencesPtr corr)
+{
   /*
   vector<float> temp (cscore);
   sort(temp.begin(), temp.end());
@@ -361,104 +407,16 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
       i++;
   }
   if(file1.empty())
-      file1 = "table2.pcd";
+      file1 = "run3.pcd";
   if(file2.empty())
-      file2 = "table2.pcd";
+      file2 = "run4.pcd";
 
   printSettings();
 
   // load point clouds
   pcl::PCDReader reader;
-  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + file1, *cloud1);
-  reader.read<pcl::PointXYZRGB> ("../dat/pcl/" + file2, *cloud2);
-
-
-  //color_correct(cloud1);
-  //color_correct(cloud2);
-/*
-  pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud3 (new pcl::PointCloud<pcl::PointXYZRGB>);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr m3 (new pcl::PointCloud<pcl::PointXYZ>);
-
-  
-  // Iterative Closest Point
-  pcl::PointCloud<pcl::PointXYZ>::Ptr m1 (new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr m2 (new pcl::PointCloud<pcl::PointXYZ>);
-  reader.read<pcl::PointXYZ> ("../dat/match/" + file1, *m1);
-  reader.read<pcl::PointXYZ> ("../dat/match/" + file2, *m2);
-
-  // rescale clouds
-  // desired scale
-  float dscale = 1;
-  float sc1 = 0;
-  for(size_t i = 0;i < m1->points.size()-1;i++)
-    for(size_t j = i+1;j < m1->points.size();j++)
-      sc1 += std::sqrt(std::pow(m1->points[i].x - m1->points[j].x, 2) + std::pow(m1->points[i].y - m1->points[j].y, 2) + std::pow(m1->points[i].z - m1->points[j].z, 2));
-  float sc2 = 0;
-  for(size_t i = 0;i < m2->points.size()-1;i++)
-    for(size_t j = i+1;j < m2->points.size();j++)
-      sc2 += std::sqrt(std::pow(m2->points[i].x - m2->points[j].x, 2) + std::pow(m2->points[i].y - m2->points[j].y, 2) + std::pow(m2->points[i].z - m2->points[j].z, 2));
-  Eigen::Affine3f rs1 = Eigen::Affine3f::Identity();
-  rs1.scale(dscale / sc1);
-  Eigen::Affine3f rs2 = Eigen::Affine3f::Identity();
-  rs2.scale(dscale / sc2);
-
-  pcl::transformPointCloud (*cloud1, *cloud1, rs1);
-  pcl::transformPointCloud (*m1, *m1, rs1);
-  pcl::transformPointCloud (*cloud2, *cloud2, rs2);
-  pcl::transformPointCloud (*m2, *m2, rs2);
-
-  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-  icp.setInputSource(m2);
-  icp.setInputTarget(m1);
-  icp.align(*m3);
-  std::cout << "has converged:" << icp.hasConverged() << " score: " << icp.getFitnessScore() << std::endl;
-  std::cout << icp.getFinalTransformation() << std::endl;
-  
-  pcl::transformPointCloud (*cloud2, *cloud3, icp.getFinalTransformation());
-*/
-  /*
-  // Normal Dist Transform
-  pcl::NormalDistributionsTransform<pcl::PointXYZ, pcl::PointXYZ> ndt;
-  // Setting scale dependent NDT parameters
-  // Setting minimum transformation difference for termination condition.
-  ndt.setTransformationEpsilon (0.01);
-  // Setting maximum step size for More-Thuente line search.
-  ndt.setStepSize (0.1);
-  //Setting Resolution of NDT grid structure (VoxelGridCovariance).
-  ndt.setResolution (1.0);
-  // Setting max number of registration iterations.
-  ndt.setMaximumIterations (35);
-  // Setting point cloud to be aligned.
-  ndt.setInputSource (cloud2);
-  // Setting point cloud to be aligned to.
-  ndt.setInputTarget (cloud1);
-  // Set initial alignment estimate found using robot odometry.
-  Eigen::AngleAxisf init_rotation (0.6931, Eigen::Vector3f::UnitZ ());
-  Eigen::Translation3f init_translation (1.79387, 0.720047, 0);
-  Eigen::Matrix4f init_guess = (init_translation * init_rotation).matrix ();
-  // Calculating required rigid transform to align the input cloud to the target cloud.
-  ndt.align (*cloud3, init_guess);
-  std::cout << "Normal Distributions Transform has converged:" << ndt.hasConverged ()
-              << " score: " << ndt.getFitnessScore () << std::endl;
-  
-
-  
-  Eigen::Vector4f c1, c2;
-  pcl::compute3DCentroid(*cloud1, c1);
-  pcl::compute3DCentroid(*cloud2, c2);
-  cout << "Cloud A Center: \n" << c1 << "\n\n";
-  cout << "Cloud B Center: \n" << c2 << endl;
-*/
-  Eigen::Matrix4f randtr;
-  randtr(0, 0) = 0.866025;randtr(0, 1) = 0.5;       randtr(0, 2) = 0; randtr(0, 3) = 0;
-  randtr(1, 0) = 0.5;     randtr(1, 1) = -0.866025; randtr(1, 2) = 0; randtr(1, 3) = 0;
-  randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
-  randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;
-
-  randtr(0, 0) = 1;       randtr(0, 1) = 0;         randtr(0, 2) = 0; randtr(0, 3) = 1;
-  randtr(1, 0) = 0;       randtr(1, 1) = 1;         randtr(1, 2) = 0; randtr(1, 3) = 0;
-  randtr(2, 0) = 0;       randtr(2, 1) = 0;         randtr(2, 2) = 1; randtr(2, 3) = 0;
-  randtr(3, 0) = 0;       randtr(3, 1) = 0;         randtr(3, 2) = 0; randtr(3, 3) = 1;
+  reader.read<pcl::PointXYZRGB> ("../dat/fuse_dataset/" + file1, *cloud1);
+  reader.read<pcl::PointXYZRGB> ("../dat/fuse_dataset/" + file2, *cloud2);
 
   if(ext_points)
   {
@@ -474,8 +432,6 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
   
 
 
-
-
   if(c_disp)
     cout << "Cloud 1\n";
   key_detect(cloud1, keys1, norms1, feats1);
@@ -484,9 +440,14 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
     cout << "\nCloud 2\n";
   key_detect(cloud2, keys2, norms2, feats2);
 
+  if(feat_mode == 0)
+    match_fpfh(feats2, feats1, corr);
+  else if(feat_mode == 1)
+    match_fpfh(feats2, feats1, corr);
+
   if(c_disp)
     cout << "\nRegister Clouds\n";
-  s2d = register_clouds(keys2, keys1, feats2, feats1);
+  s2d = register_clouds(keys2, keys1, corr);
 
   if(trans)
   {
