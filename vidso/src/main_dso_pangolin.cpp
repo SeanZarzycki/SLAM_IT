@@ -170,7 +170,7 @@ void settingsDefault(int preset)
 				"PHOTOMETRIC MODE WITHOUT CALIBRATION!\n"
 				"DISABLE LOGGING!\n"
 				"USING PCL WRAPPER!\n"
-				"RECORDING DENSE CLOUD\n");
+				"RECORDING NON-DENSE CLOUD\n");
 
 		playbackSpeed = 0;
 		preload = false;
@@ -190,7 +190,7 @@ void settingsDefault(int preset)
 		usePCLOutput = true;
 		setting_logStuff = false;
 		disableAllDisplay = true;
-		dens_cloud = true;
+		dens_cloud = false;
 	}
 
 	printf("==============================================\n");
