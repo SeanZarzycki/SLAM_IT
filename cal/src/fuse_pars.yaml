@@ -23,35 +23,42 @@ filter:
       v   : 4
   
   Radius:
-    n: 250
+    n: 300
     r: 0.1
   Stat:
     K: 100
     T: 0.1
   Down:
-    res: 0.005
+    res: 0.003
   Bound:
-    x: [-25, 25]
-    y: [-25, 25]
-    z: [-25, 25]
+    x: [-0.5, 0.5]
+    y: [-0.5, 0.5]
+    z: [0, 1.5]
+
+enables:
+  fuse  : 1
+  icp   : 0
+
 
 normals:
-  r: 0.05
+  r: 0.025
 
 keypoints:
-  mode: SIFT
+  mode: Harris
   types:
     - name: SIFT
       v   : 1
     - name: Harris
       v   : 2
 
+  dist: 0.02
+  
   SIFT:
     min scale   : 0.1
     octaves     : 8
     scales      : 10
     min contrast: 0.0001
-    prctile     : 0.8
+    prctile     : 0
   Harris:
     r       : 0.1
     t       : 0.0
@@ -59,34 +66,50 @@ keypoints:
     refine  : True
 
 features:
-  mode: FPFH
+  mode: PFHC
   types:
     - name: FPFH
-      v   : 0
-    - name: GASD
       v   : 1
+    - name: RIFT
+      v   : 2
+    - name: PFHC
+      v   : 3
 
   FPFH:
-    r: 0.1
-  GASD:
+    r: 0.2
+  RIFT:
+    igr   : 0.1
+    rad   : 0.2
+  PFHC:
     r: 0.1
 
 correlate:
-  eps : 0.1
-  n   : 20
+  dist: 0.3
+  eps : 0.7
+  n   : 50
 
 
 
 transform:
-  select: 1
+  select: 0
   T:
-    - name: I
+    - name: Identity
       rows: 4
       cols: 4
       dt: d
       data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
-    - name: R
+    - name: Rotate
       rows: 4
       cols: 4
       dt: d
-      data: [0.866025, 0.5, 0, 0, 0.5, -0.866025, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+      data: [0.866025, 0, 0.5, 0, 0, 1, 0, 0, -0.5, 0, 0.866025, 0, 0, 0, 0, 1]
+    - name: Translate
+      rows: 4
+      cols: 4
+      dt: d
+      data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0.75, 0, 0, 0, 1]
+    - name: Scale
+      rows: 4
+      cols: 4
+      dt: d
+      data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

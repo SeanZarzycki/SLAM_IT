@@ -1,59 +1,30 @@
-// general
-#include <iostream>
-#include <cmath>
-#include <string>
 
-// misc pcl
-#include <pcl/io/pcd_io.h>
-#include <pcl/point_types.h>
-#include <pcl/visualization/cloud_viewer.h>
-#include <pcl/io/io.h>
 
-// fusion requirements
-#include <pcl/filters/conditional_removal.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/statistical_outlier_removal.h>
-#include <pcl/filters/radius_outlier_removal.h>
-#include <pcl/keypoints/sift_keypoint.h>
-#include <pcl/keypoints/harris_3d.h>
-#include <pcl/filters/extract_indices.h>
-#include "edge_det.h"
-#include <pcl/features/fpfh.h>
-#include <pcl/features/gasd.h>
-#include <pcl/correspondence.h>
-#include <pcl/kdtree/kdtree_flann.h>
-#include <pcl/common/transforms.h>
-#include <pcl/registration/correspondence_rejection_sample_consensus.h>
-
-#include "Fuse_help.h"
+#include "Fuse.h"
 
 using namespace std;
 
-// features being used
-typedef pcl::PointCloud<pcl::FPFHSignature33> FeatureSpace;
+FuseAlg::FuseAlg(Fuse_sets* settings)
+{
+  sets = settings;
 
-string file1, file2;
-int scan_val;
-bool col_diff, keys, key_sphere, c_disp, show_filt, show_corr, trans, ext_points, normals, disp_view;
+  cloud1 = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>());
+  cloud2 = pcl::PointCloud<pcl::PointXYZRGB>::Ptr (new pcl::PointCloud<pcl::PointXYZRGB>());
+  keys1 = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>());
+  keys2 = pcl::PointCloud<pcl::PointXYZ>::Ptr (new pcl::PointCloud<pcl::PointXYZ>());
+  norms1 = pcl::PointCloud<pcl::Normal>::Ptr (new pcl::PointCloud<pcl::Normal>());
+  norms2 = pcl::PointCloud<pcl::Normal>::Ptr (new pcl::PointCloud<pcl::Normal>());
+  fpfh1 = pcl::PointCloud<pcl::FPFHSignature33>::Ptr (new pcl::PointCloud<pcl::FPFHSignature33>());
+  fpfh2 = pcl::PointCloud<pcl::FPFHSignature33>::Ptr (new pcl::PointCloud<pcl::FPFHSignature33>());
+  rift1 = pcl::PointCloud<RIFT_DESC>::Ptr (new pcl::PointCloud<RIFT_DESC>());
+  rift2 = pcl::PointCloud<RIFT_DESC>::Ptr (new pcl::PointCloud<RIFT_DESC>());
+  pfhc1 = pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr (new pcl::PointCloud<pcl::PFHRGBSignature250>());
+  pfhc2 = pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr (new pcl::PointCloud<pcl::PFHRGBSignature250>());
+  inlie = pcl::CorrespondencesPtr (new pcl::Correspondences());
+  corr = pcl::CorrespondencesPtr (new pcl::Correspondences());
+}
 
-int parseArgument(char*);
-void viewOne (pcl::visualization::PCLVisualizer&);
-void color_correct(pcl::PointCloud<pcl::PointXYZRGB>::Ptr);
-
-// clouds
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud1 (new pcl::PointCloud<pcl::PointXYZRGB>);
-pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud2 (new pcl::PointCloud<pcl::PointXYZRGB>);
-pcl::PointCloud<pcl::PointXYZ>::Ptr keys1 (new pcl::PointCloud<pcl::PointXYZ>);
-pcl::PointCloud<pcl::PointXYZ>::Ptr keys2 (new pcl::PointCloud<pcl::PointXYZ>);
-pcl::PointCloud<pcl::Normal>::Ptr norms1 (new pcl::PointCloud<pcl::Normal>);
-pcl::PointCloud<pcl::Normal>::Ptr norms2 (new pcl::PointCloud<pcl::Normal>);
-FeatureSpace::Ptr feats1 (new FeatureSpace);
-FeatureSpace::Ptr feats2 (new FeatureSpace);
-pcl::CorrespondencesPtr inlie (new pcl::Correspondences);
-pcl::CorrespondencesPtr corr (new pcl::Correspondences);
-
-
-void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr &keys, pcl::PointCloud<pcl::Normal>::Ptr &norms, FeatureSpace::Ptr &feats)
+void FuseAlg::key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<pcl::PointXYZ>::Ptr &keys, pcl::PointCloud<pcl::Normal>::Ptr &norms, pcl::PointCloud<pcl::FPFHSignature33>::Ptr &feats_fpfh, pcl::PointCloud<RIFT_DESC>::Ptr &feats_rift, pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr &feats_pfhc)
 {
   if(c_disp)
   {
@@ -64,18 +35,18 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   // Preprocess filtering
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr filt (new pcl::PointCloud<pcl::PointXYZRGB>);
   copyPointCloud(*cloud, *filt);
-  for(size_t k = 0;k < filt_type.size();k++)
+  for(size_t k = 0;k < sets->filt_type.size();k++)
   {
-    if(filt_type[k] == 4)
+    if(sets->filt_type[k] == 4)
     {
       // limit bounds of point cloud
       pcl::ConditionAnd<pcl::PointXYZRGB>::Ptr range_cond (new pcl::ConditionAnd<pcl::PointXYZRGB> ());
-      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("x", pcl::ComparisonOps::GT, filt_lims[0])));
-      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("x", pcl::ComparisonOps::LT, filt_lims[1])));
-      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("y", pcl::ComparisonOps::GT, filt_lims[2])));
-      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("y", pcl::ComparisonOps::LT, filt_lims[3])));
-      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("z", pcl::ComparisonOps::GT, filt_lims[4])));
-      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("z", pcl::ComparisonOps::LT, filt_lims[5])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("x", pcl::ComparisonOps::GT, sets->filt_lims[0])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("x", pcl::ComparisonOps::LT, sets->filt_lims[1])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("y", pcl::ComparisonOps::GT, sets->filt_lims[2])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("y", pcl::ComparisonOps::LT, sets->filt_lims[3])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("z", pcl::ComparisonOps::GT, sets->filt_lims[4])));
+      range_cond->addComparison (pcl::FieldComparison<pcl::PointXYZRGB>::ConstPtr (new pcl::FieldComparison<pcl::PointXYZRGB> ("z", pcl::ComparisonOps::LT, sets->filt_lims[5])));
       // build the filter
       pcl::ConditionalRemoval<pcl::PointXYZRGB> condrem;
       condrem.setCondition (range_cond);
@@ -91,13 +62,13 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
         filt_name = filt_name + "+";
       filt_name = filt_name + "Bound Filter";
     }
-    if(filt_type[k] == 2)
+    if(sets->filt_type[k] == 2)
     {
       // Create the filtering object
       pcl::StatisticalOutlierRemoval<pcl::PointXYZRGB> sor;
       sor.setInputCloud (filt);
-      sor.setMeanK (filt_K);
-      sor.setStddevMulThresh (filt_T);
+      sor.setMeanK (sets->filt_K);
+      sor.setStddevMulThresh (sets->filt_T);
       sor.filter (*filt);
 
       if(c_disp)
@@ -107,13 +78,13 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
         filt_name = filt_name + "+";
       filt_name = filt_name + "Statistical Filter";
     }
-    if(filt_type[k] == 1)
+    if(sets->filt_type[k] == 1)
     {
       pcl::RadiusOutlierRemoval<pcl::PointXYZRGB> outrem;
       // build the filter
       outrem.setInputCloud(filt);
-      outrem.setRadiusSearch(filt_R);
-      outrem.setMinNeighborsInRadius(filt_N);
+      outrem.setRadiusSearch(sets->filt_R);
+      outrem.setMinNeighborsInRadius(sets->filt_N);
       // apply filter
       outrem.filter (*filt);
       
@@ -124,12 +95,12 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
         filt_name = filt_name + "+";
       filt_name = filt_name + "Radius Filter";
     }
-    if(filt_type[k] == 3)
+    if(sets->filt_type[k] == 3)
     {
       // Downsample
       pcl::VoxelGrid<pcl::PointXYZRGB> sor;
       sor.setInputCloud (filt);
-      sor.setLeafSize (filt_dres, filt_dres, filt_dres);
+      sor.setLeafSize (sets->filt_dres, sets->filt_dres, sets->filt_dres);
       sor.filter (*filt);
 
       if(c_disp)
@@ -142,7 +113,7 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   }
   
   /*
-  if(c_disp && filt_type != 0)
+  if(c_disp && sets->filt_type != 0)
   {
     cout << filt_name << " Size: " << filt->points.size() << "\n";
   }
@@ -155,28 +126,28 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
   norm_est.setInputCloud (filt); // possibly use raw cloud
   pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree2 (new pcl::search::KdTree<pcl::PointXYZRGB> ());
   norm_est.setSearchMethod (tree2);
-  norm_est.setRadiusSearch (norm_r);
+  norm_est.setRadiusSearch (sets->norm_r);
   norm_est.compute(*norms);
 
   // Keypoint detection
   vector<float> sift_vals;
   if(!ext_points)
   {
-    if(keys_mode == 1)
+    if(sets->keys_mode == 1)
     {
       // SIFT
       pcl::SIFTKeypoint<pcl::PointXYZRGB, pcl::PointWithScale> sift;
       pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
       pcl::PointCloud<pcl::PointWithScale>::Ptr results (new pcl::PointCloud<pcl::PointWithScale>());
       sift.setSearchMethod(tree);
-      sift.setScales(sift_ms, sift_no, sift_ns);
-      sift.setMinimumContrast(sift_mc);
+      sift.setScales(sets->sift_ms, sets->sift_no, sets->sift_ns);
+      sift.setMinimumContrast(sets->sift_mc);
       sift.setInputCloud(filt);
       sift.compute(*results);
 
       if(c_disp)
       {
-        if(sift_prct > 0 && !ext_points)
+        if(sets->sift_prct > 0 && !ext_points)
           cout << "Original Keypoints: " << results->size() << endl;
       }
 
@@ -185,9 +156,9 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
       for(size_t j = 0;j < results->size();j++)
         sift_vals[j] = results->points[j].scale;
       std::sort(sift_vals.begin(), sift_vals.end());
-      int ind = sift_vals.size() * sift_prct;
+      int ind = sift_vals.size() * sets->sift_prct;
       float prctile = sift_vals[ind];
-      pcl::PointIndices::Ptr inliers (new pcl::PointIndices ());
+      pcl::PointIndices::Ptr inliers (new pcl::PointIndices());
       for(size_t j = 0;j < results->size();j++)
       {
         if(results->points[j].scale >= prctile)
@@ -200,51 +171,117 @@ void key_detect(pcl::PointCloud<pcl::PointXYZRGB>::Ptr &cloud, pcl::PointCloud<p
       extract.filter (*results);
       pcl::copyPointCloud (*results, *keys);
     }
-    else if(keys_mode == 2)
+    else if(sets->keys_mode == 2)
     {
       // Harris
-      pcl::HarrisKeypoint3D<pcl::PointXYZRGB, pcl::PointXYZI, pcl::Normal> harr (pcl::HarrisKeypoint3D<pcl::PointXYZRGB, pcl::PointXYZI, pcl::Normal>::ResponseMethod::HARRIS, harr_rad, harr_tau);
+      pcl::HarrisKeypoint3D<pcl::PointXYZRGB, pcl::PointXYZI, pcl::Normal> harr (pcl::HarrisKeypoint3D<pcl::PointXYZRGB, pcl::PointXYZI, pcl::Normal>::ResponseMethod::HARRIS, sets->harr_rad, sets->harr_tau);
       pcl::PointCloud<pcl::PointXYZI> result;
       pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZRGB> ());
       harr.setSearchMethod(tree);
-      harr.setNonMaxSupression(harr_maxs);
-      harr.setRefine(harr_ref);
+      harr.setNonMaxSupression(sets->harr_maxs);
+      harr.setRefine(sets->harr_ref);
       harr.setInputCloud(filt);
       harr.setNormals(norms);
       harr.compute(result);
       pcl::copyPointCloud (result, *keys);
+    }
+
+    if(sets->keys_dist > 0)
+    {
+      // remove close points
+      pcl::PointIndices::Ptr inliers (new pcl::PointIndices());
+      for(size_t i = 0;i < keys->size();i++)
+      {
+        bool check = true;
+        
+        for(size_t j = i+1;j < keys->size();j++)
+          if(pow(keys->points[i].x - keys->points[j].x, 2) + pow(keys->points[i].y - keys->points[j].y, 2) + pow(keys->points[i].z - keys->points[j].z, 2) < pow(sets->keys_dist, 2))
+            check = false;
+        
+        if(check)
+          inliers->indices.push_back(i);
+      }
+      pcl::ExtractIndices<pcl::PointXYZ> extract;
+      extract.setInputCloud (keys);
+      extract.setIndices (inliers);
+      extract.setNegative (false);
+      extract.filter (*keys);
     }
   }
   if(c_disp)
     cout << "Keypoints: " << keys->points.size() << endl;
 
   // get features
-  if(feat_mode == 0)
+  if(sets->feat_mode == 1)
   {
     pcl::FPFHEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::FPFHSignature33> fpfh_est;
     pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree3 (new pcl::search::KdTree<pcl::PointXYZRGB> ());
     fpfh_est.setSearchMethod (tree3);
-    fpfh_est.setRadiusSearch (feat_r);
+    fpfh_est.setRadiusSearch (sets->fpfh_r);
     pcl::PointCloud<pcl::PointXYZRGB>::Ptr keys_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
     pcl::copyPointCloud (*keys, *keys_rgb);
-    fpfh_est.setSearchSurface (filt);//(filt); // possibly use raw cloud instead
+    fpfh_est.setSearchSurface (filt);
     fpfh_est.setInputNormals (norms);  
     fpfh_est.setInputCloud (keys_rgb);
-    fpfh_est.compute (*feats);
-  }
-  else if(feat_mode == 1)
-  {
+    fpfh_est.compute (*feats_fpfh);
 
+    if(c_disp)
+      cout << "FPFH Features Calculated\n";
+  }
+  else if(sets->feat_mode == 2)
+  {
+    pcl::PointCloud<pcl::IntensityGradient>::Ptr grads (new pcl::PointCloud<pcl::IntensityGradient>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr clt (new pcl::PointCloud<pcl::PointXYZI>);
+    PointCloudXYZRGBtoXYZI(*filt, *clt);
+
+    pcl::IntensityGradientEstimation < pcl::PointXYZI, pcl::Normal, pcl::IntensityGradient, pcl::common::IntensityFieldAccessor<pcl::PointXYZI> > ge;
+    ge.setInputCloud(clt);
+    ge.setInputNormals(norms);
+    ge.setRadiusSearch(sets->rift_igr);
+    ge.compute(*grads);
+
+    pcl::search::KdTree<pcl::PointXYZI>::Ptr kdtree (new pcl::search::KdTree<pcl::PointXYZI>);
+    pcl::RIFTEstimation<pcl::PointXYZI, pcl::IntensityGradient, RIFT_DESC> rift;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr keysi (new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::copyPointCloud (*keys, *keysi);
+    rift.setInputCloud(keysi);
+    rift.setSearchSurface(clt);
+    rift.setSearchMethod(kdtree);
+    rift.setInputGradient(grads);
+    rift.setRadiusSearch(sets->rift_r);
+    rift.setNrDistanceBins(dist_bins);
+    rift.setNrGradientBins(grad_bins);
+
+    rift.compute(*feats_rift);
+
+    if(c_disp)
+      cout << "RIFT Features Calculated\n";
+  }
+  else if(sets->feat_mode == 3)
+  {
+    pcl::PFHRGBEstimation<pcl::PointXYZRGB, pcl::Normal, pcl::PFHRGBSignature250> pfhrgb_est;
+    pcl::search::KdTree<pcl::PointXYZRGB>::Ptr tree3 (new pcl::search::KdTree<pcl::PointXYZRGB> ());
+    pfhrgb_est.setSearchMethod (tree3);
+    pfhrgb_est.setRadiusSearch (sets->pfhc_r);
+    pcl::PointCloud<pcl::PointXYZRGB>::Ptr keys_rgb (new pcl::PointCloud<pcl::PointXYZRGB>);
+    pcl::copyPointCloud (*keys, *keys_rgb);
+    pfhrgb_est.setSearchSurface (filt);
+    pfhrgb_est.setInputNormals (norms);
+    pfhrgb_est.setInputCloud (keys_rgb);
+    pfhrgb_est.compute (*feats_pfhc);
+
+    if(c_disp)
+      cout << "PFHRGB Features Calculated\n";
   }
 
   if(show_filt)
     copyPointCloud(*filt, *cloud);
 }
-void match_fpfh(FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd, pcl::CorrespondencesPtr corr)
+void FuseAlg::match_fpfh(pcl::PointCloud<pcl::FPFHSignature33>::Ptr &fs, pcl::PointCloud<pcl::FPFHSignature33>::Ptr &fd, pcl::CorrespondencesPtr cor)
 {
+  pcl::Correspondences cort1;
   pcl::KdTreeFLANN<pcl::FPFHSignature33> descriptor_kdtree;
   descriptor_kdtree.setInputCloud (fd);
-
   const int k = 1;
   std::vector<int> k_indices (k);
   std::vector<float> k_squared_distances (k);
@@ -254,141 +291,172 @@ void match_fpfh(FeatureSpace::Ptr &fs, FeatureSpace::Ptr &fd, pcl::Correspondenc
     if(found == 1)
     {
       pcl::Correspondence ct (k_indices[0], static_cast<int> (i), k_squared_distances[0]);
+      cort1.push_back(ct);
+    }
+  }
+
+  pcl::Correspondences cort2;
+  pcl::KdTreeFLANN<pcl::FPFHSignature33> descriptor_kdtree2;
+  descriptor_kdtree2.setInputCloud (fs);
+  std::vector<int> k_indices2 (k);
+  std::vector<float> k_squared_distances2 (k);
+  for (size_t i = 0; i < fd->size (); ++i)
+  {
+    int found = descriptor_kdtree2.nearestKSearch (fd->at(i), k, k_indices2, k_squared_distances2);
+    if(found == 1)
+    {
+      pcl::Correspondence ct (k_indices2[0], static_cast<int> (i), k_squared_distances2[0]);
+      cort2.push_back(ct);
+    }
+  }
+
+  for(size_t i = 0;i < cort1.size();i++)
+    for(size_t j = 0;j < cort2.size();j++)
+      if(cort1[i].index_match == cort2[j].index_query && cort1[i].index_query == cort2[j].index_match)
+      {
+        corr->push_back(cort1[i]);
+      }
+
+  if(c_disp)
+    cout << "Initial Matches: " << cor->size() << endl;
+}
+void FuseAlg::match_rift(pcl::PointCloud<RIFT_DESC>::Ptr &fs, pcl::PointCloud<RIFT_DESC>::Ptr &fd, pcl::CorrespondencesPtr cor)
+{
+  pcl::Correspondences cort1;
+  for (size_t i = 0; i < fs->size (); ++i)
+  {
+    int found = -1;
+    float val = 1000000;
+    for(size_t j = 0;j < fd->size();j++)
+    {
+      float tval = 0, tval2 = 0;
+      for(int k = 0;k < dist_bins*grad_bins;k++)
+      {
+        tval += pow(fs->at(i).histogram[k] - fd->at(j).histogram[k], 2);
+        tval2 += pow(fs->at(i).histogram[k], 2) + pow(fd->at(j).histogram[k], 2);
+      }
+      
+      if(tval2 > 0 && tval / tval2 < val)
+      {
+        found = j;
+        val = tval / tval2;
+      }
+    }
+
+    if(found >= 0)
+    {
+      pcl::Correspondence ct (found, static_cast<int> (i), val);
       corr->push_back(ct);
     }
   }
 
-  // eliminate multi matches
-  vector<bool> ck1, ck2, ck3;
-  ck1.resize(fd->size());
-  ck2.resize(fd->size());
-  ck3.resize(corr->size());
-  for(size_t i = 0;i < corr->size();i++)
-  {
-    size_t ind = corr->at(i).index_query;
-    if(ind < fd->size())
-      if(ck1[ind])
-        ck2[ind] = true;
-      else
-        ck1[ind] = true;
-    else
-      ck3[i] = true;
-  }
-  pcl::CorrespondencesPtr temp (new pcl::Correspondences);
-  for(size_t i = 0;i < corr->size();i++)
-  {
-    if(!ck3[i])
-    {
-      ck3[i] = true;
-      if(!ck2[corr->at(i).index_query])
-        temp->push_back(corr->at(i));
-      else
-      {
-        float max = corr->at(i).distance;
-        int ti = i;
-        for(size_t j = i+1;j < corr->size();j++)
-          if(corr->at(i).index_query == corr->at(j).index_query)
-          {
-            ck3[j] = true;
-            if(corr->at(j).distance > max)
-            {
-              max = corr->at(j).distance;
-              ti = j;
-            }
-          }
-        temp->push_back(corr->at(ti));
-      }
-    }
-  }
-  corr = temp;
-}
-Eigen::Matrix<float, 4, 4> register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &ms, pcl::PointCloud<pcl::PointXYZ>::Ptr &md, pcl::CorrespondencesPtr corr)
-{
-  /*
-  vector<float> temp (cscore);
-  sort(temp.begin(), temp.end());
-  float sm = temp[(int) (0.5 + corr_v * temp.size())];
-  
-  pcl::PointCloud<pcl::PointWithScale> mts;
-  pcl::PointCloud<pcl::PointWithScale> mtd;
-  size_t j = 0;
-  for(size_t i = 0;i < cscore.size();i++)
-    if(cscore[i] > sm && corr[i] < (int) md->points.size())
-      j++;
-  mts.resize(j);
-  mtd.resize(j);
-  j = 0;
-  for(size_t i = 0;i < cscore.size();i++)
-    if(cscore[i] > sm && corr[i] < (int) md->points.size())
-    {
-      mts.points.push_back(ms->points[i]);
-
-      mtd.points.push_back(md->points[corr[i]]);
-
-      j++;
-    }
-
-    */
-  
   if(c_disp)
-    cout << "Initial Matches: " << corr->size() << endl;
-    
+    cout << "Initial Matches: " << cor->size() << endl;
+}
+void FuseAlg::match_pfhc(pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr &fs, pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr &fd, pcl::CorrespondencesPtr cor)
+{
+  pcl::Correspondences cort1;
+  pcl::KdTreeFLANN<pcl::PFHRGBSignature250> descriptor_kdtree;
+  descriptor_kdtree.setInputCloud (fd);
+  const int k = 1;
+  std::vector<int> k_indices (k);
+  std::vector<float> k_squared_distances (k);
+  for (size_t i = 0; i < fs->size (); ++i)
+  {
+    int found = descriptor_kdtree.nearestKSearch (fs->at(i), k, k_indices, k_squared_distances);
+    if(found == 1)
+    {
+      pcl::Correspondence ct (k_indices[0], static_cast<int> (i), k_squared_distances[0]);
+      cort1.push_back(ct);
+    }
+  }
 
+  pcl::Correspondences cort2;
+  pcl::KdTreeFLANN<pcl::PFHRGBSignature250> descriptor_kdtree2;
+  descriptor_kdtree2.setInputCloud (fs);
+  std::vector<int> k_indices2 (k);
+  std::vector<float> k_squared_distances2 (k);
+  for (size_t i = 0; i < fd->size (); ++i)
+  {
+    int found = descriptor_kdtree2.nearestKSearch (fd->at(i), k, k_indices2, k_squared_distances2);
+    if(found == 1)
+    {
+      pcl::Correspondence ct (k_indices2[0], static_cast<int> (i), k_squared_distances2[0]);
+      cort2.push_back(ct);
+    }
+  }
 
+  for(size_t i = 0;i < cort1.size();i++)
+    for(size_t j = 0;j < cort2.size();j++)
+      if(cort1[i].index_match == cort2[j].index_query && cort1[i].index_query == cort2[j].index_match)
+      {
+        corr->push_back(cort1[i]);
+      }
 
+  if(c_disp)
+    cout << "Initial Matches: " << cor->size() << endl;
+}
+Eigen::Matrix<float, 4, 4> FuseAlg::register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &ms, pcl::PointCloud<pcl::PointXYZ>::Ptr &md, pcl::CorrespondencesPtr cor)
+{
+  // remove matched keypoints that are far away from each other
+  pcl::CorrespondencesPtr corf;
+  for(size_t i = 0;i < cor->size();i++)
+  {
+    float dist = std::sqrt(std::pow(ms->points[inlie->at(i).index_match].x - ms->points[inlie->at(i).index_query].x, 2) + std::pow(ms->points[inlie->at(i).index_match].y - ms->points[inlie->at(i).index_query].y, 2) + std::pow(ms->points[inlie->at(i).index_match].z - ms->points[inlie->at(i).index_query].z, 2));
+    if(dist <= sets->corr_dist)
+      corf->push_back(cor->at(i));
+  }
 
-
+  // Refine points
+  pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> sac;
+  sac.setInputSource(ms);
+  sac.setInputTarget(md);
+  sac.setInlierThreshold(sets->corr_eps);
+  sac.setMaximumIterations(sets->corr_n);
+  sac.setInputCorrespondences(corf);
+  sac.getRemainingCorrespondences(*corf, *inlie);
 
   // rescale clouds
   float scs = 0; // ms scale measurement
-  for(size_t i = 0;i < ms->points.size()-1;i++)
-    for(size_t j = i+1;j < ms->points.size();j++)
-      scs += std::sqrt(std::pow(ms->points[i].x - ms->points[j].x, 2) + std::pow(ms->points[i].y - ms->points[j].y, 2) + std::pow(ms->points[i].z - ms->points[j].z, 2));
+  for(size_t i = 0;i < inlie->size()-1;i++)
+    for(size_t j = i+1;j < inlie->size();j++)
+      scs += std::sqrt(std::pow(ms->points[inlie->at(i).index_match].x - ms->points[inlie->at(j).index_match].x, 2) + std::pow(ms->points[inlie->at(i).index_match].y - ms->points[inlie->at(j).index_match].y, 2) + std::pow(ms->points[inlie->at(i).index_match].z - ms->points[inlie->at(j).index_match].z, 2));
   float scd = 0; // md scale measurement
-  for(size_t i = 0;i < md->points.size()-1;i++)
-    for(size_t j = i+1;j < md->points.size();j++)
-      scd += std::sqrt(std::pow(md->points[i].x - md->points[j].x, 2) + std::pow(md->points[i].y - md->points[j].y, 2) + std::pow(md->points[i].z - md->points[j].z, 2));
+  for(size_t i = 0;i < inlie->size()-1;i++)
+    for(size_t j = i+1;j < inlie->size();j++)
+      scd += std::sqrt(std::pow(md->points[inlie->at(i).index_query].x - md->points[inlie->at(j).index_query].x, 2) + std::pow(md->points[inlie->at(i).index_query].y - md->points[inlie->at(j).index_query].y, 2) + std::pow(md->points[inlie->at(i).index_query].z - md->points[inlie->at(j).index_query].z, 2));
   // normalize
   Eigen::Affine3f rs = Eigen::Affine3f::Identity();
-  float scale = scd * ms->points.size() * ms->points.size() / (scs * md->points.size() * md->points.size());
-  rs.scale(scale);
-
+  float scale = scd / scs;
+  // comment out to disable scaling
+  //rs.scale(scale);
+  cout << "Estimated Scale: " << scale << endl;
   // rescale source
   pcl::PointCloud<pcl::PointXYZ>::Ptr mt (new pcl::PointCloud<pcl::PointXYZ>);
   pcl::transformPointCloud (*ms, *mt, rs);
 
-  // find transformation
-  /*
-  pcl::IterativeClosestPoint<pcl::PointWithScale, pcl::PointWithScale> icp;
-  icp.setInputSource(mt);
-  icp.setInputTarget(md);
-  icp.align(*mt);
-  return scd * icp.getFinalTransformation() / scs;
-  */
-  pcl::registration::CorrespondenceRejectorSampleConsensus<pcl::PointXYZ> sac;
-  sac.setInputSource(mt);
-  sac.setInputTarget(md);
-  sac.setInlierThreshold(corr_eps);
-  sac.setMaximumIterations(corr_n);
-  sac.setInputCorrespondences(corr);
-  sac.getRemainingCorrespondences(*corr, *inlie);
-  Eigen::Matrix4f tr = sac.getBestTransformation();
-  tr = tr * rs.matrix();
-
   if(c_disp)
-    cout << "Matches: " << inlie->size() << "\nTransform:\n" << tr << "\n";
+    cout << "Matches: " << inlie->size() << "\n";
+
+  // find transformation
+  pcl::PointCloud<pcl::PointXYZ>::Ptr msr (new pcl::PointCloud<pcl::PointXYZ>());
+  pcl::PointCloud<pcl::PointXYZ>::Ptr mdr (new pcl::PointCloud<pcl::PointXYZ>());
+  for(size_t i = 0;i < inlie->size();i++)
+  {
+    msr->push_back(mt->points[inlie->at(i).index_match]);
+    mdr->push_back(md->points[inlie->at(i).index_query]);
+  }
+  pcl::registration::TransformationEstimationSVD<pcl::PointXYZ, pcl::PointXYZ> trans;
+  Eigen::Matrix4f tr;
+  trans.estimateRigidTransformation(*msr, *mdr, tr);
+
+
 
   return tr;
 }
 
 
-void printSettings()
-{
-
-}
-
-
-int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
+int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
 {
   normals = false;
   ext_points = false;
@@ -398,7 +466,10 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
   c_disp = false;
   col_diff = false;
   keys = true;
+  key_sphere = false;
   disp_view = true;
+  fuse_en = true;
+  icp_en = false;
   scan_val = 0;
   size_t i = 1;
   while(i < argv.size())
@@ -410,8 +481,6 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
       file1 = "run3.pcd";
   if(file2.empty())
       file2 = "run4.pcd";
-
-  printSettings();
 
   // load point clouds
   pcl::PCDReader reader;
@@ -426,55 +495,73 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
     reader.read<pcl::PointXYZ> ("../dat/match/" + file2, temp2);
     copyPointCloud(temp1, *keys1);
     copyPointCloud(temp2, *keys2);
-    pcl::transformPointCloud (*keys2, *keys2, randtr);
+    pcl::transformPointCloud (*keys2, *keys2, sets->randtr);
   }
-  pcl::transformPointCloud (*cloud2, *cloud2, randtr);
+  pcl::transformPointCloud (*cloud2, *cloud2, sets->randtr);
   
 
-
-  if(c_disp)
-    cout << "Cloud 1\n";
-  key_detect(cloud1, keys1, norms1, feats1);
-
-  if(c_disp)
-    cout << "\nCloud 2\n";
-  key_detect(cloud2, keys2, norms2, feats2);
-
-  if(feat_mode == 0)
-    match_fpfh(feats2, feats1, corr);
-  else if(feat_mode == 1)
-    match_fpfh(feats2, feats1, corr);
-
-  if(c_disp)
-    cout << "\nRegister Clouds\n";
-  s2d = register_clouds(keys2, keys1, corr);
-
-  if(trans)
+  if(icp_en || !fuse_en)
   {
-    pcl::transformPointCloud (*cloud2, *cloud2, s2d);
-    pcl::transformPointCloud (*keys2, *keys2, s2d);
+    sets->feat_mode = 0;
+    s2d = sets->randtr;
+    if(!fuse_en)
+      sets->keys_mode = 0;
   }
-
-  // display clouds
-  if(disp_view)
+  if(!sets->use_thread)
   {
-    pcl::visualization::CloudViewer viewer ("Fuse Example");
-    viewer.showCloud(cloud1, "Cloud A");
-    viewer.showCloud(cloud2, "Cloud B");
-    if(keys)
+    if(c_disp)
+      cout << "Cloud 1\n";
+    key_detect(cloud1, keys1, norms1, fpfh1, rift1, pfhc1);
+
+    if(c_disp)
+      cout << "\nCloud 2\n";
+    key_detect(cloud2, keys2, norms2, fpfh2, rift2, pfhc2);
+  }
+  else
+  {
+    if(c_disp)
+      cout << "Compute Keypoints and Features\n";
+    bool temp = c_disp;
+    c_disp = false;
+    boost::thread t1(&FuseAlg::key_detect, this, boost::ref(cloud1), boost::ref(keys1), boost::ref(norms1), boost::ref(fpfh1), boost::ref(rift1), boost::ref(pfhc1));
+    boost::thread t2(&FuseAlg::key_detect, this, boost::ref(cloud2), boost::ref(keys2), boost::ref(norms2), boost::ref(fpfh2), boost::ref(rift2), boost::ref(pfhc2));
+
+    t1.join();
+    t2.join();
+    c_disp = temp;
+    if(c_disp)
+      cout << "Cloud 1 Keypoints: " << keys1->size() << "\nCloud 2 Keypoints: " << keys2->size() << endl;
+  }
+  if(fuse_en && !icp_en)
+  {
+    if(c_disp)
+      cout << "\nRegister Clouds\n";
+    if(sets->feat_mode == 1)
+      match_fpfh(fpfh2, fpfh1, corr);
+    else if(sets->feat_mode == 2)
+      match_rift(rift2, rift1, corr);
+    else if(sets->feat_mode == 3)
+      match_pfhc(pfhc2, pfhc1, corr);
+    s2d = register_clouds(keys2, keys1, corr);
+
+    if(trans)
     {
-      pcl::PointCloud<pcl::PointXYZ>::Ptr dk1 (new pcl::PointCloud<pcl::PointXYZ>);
-      copyPointCloud(*keys1, *dk1);
-      pcl::PointCloud<pcl::PointXYZ>::Ptr dk2 (new pcl::PointCloud<pcl::PointXYZ>);
-      copyPointCloud(*keys2, *dk2);
-      
-      viewer.showCloud(dk1, "Keypoints A");
-      viewer.showCloud(dk2, "Keypoints B");
+      pcl::transformPointCloud (*cloud2, *cloud2, s2d);
+      pcl::transformPointCloud (*keys2, *keys2, s2d);
     }
-    viewer.runOnVisualizationThreadOnce(viewOne);
-    
-    while (!viewer.wasStopped ())
-    { }
+  }
+  else if(icp_en)
+  {
+    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+    icp.setInputSource(keys2);
+    icp.setInputTarget(keys1);
+    icp.align(*keys2);
+    s2d = icp.getFinalTransformation();
+    if(trans)
+    {
+      pcl::transformPointCloud (*cloud2, *cloud2, s2d);
+      //pcl::transformPointCloud (*keys2, *keys2, s2d);
+    }
   }
 
   return 0;
@@ -484,7 +571,7 @@ int run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
 
 
 
-int parseArgument(char* arg)
+int FuseAlg::parseArgument(char* arg)
 {
 	int option;
 	float foption;
@@ -501,6 +588,16 @@ int parseArgument(char* arg)
     if(1==sscanf(arg,"=%f", &foption))
     {
         
+      return 0;
+    }
+    if(1==sscanf(arg,"fuse_en=%d", &option))
+    {
+      fuse_en = option == 1;
+      return 0;
+    }
+    if(1==sscanf(arg,"icp_en=%d", &option))
+    {
+      icp_en = option == 1;
       return 0;
     }
     if(1==sscanf(arg,"-%s", buf))
@@ -578,111 +675,4 @@ int parseArgument(char* arg)
 
 	printf("could not parse argument \"%s\"!!!!\n", arg);
   return 0;
-}
-
-void viewOne (pcl::visualization::PCLVisualizer& viewer)
-{
-  viewer.setCameraPosition(-0.118567, -0.0371279, -0.194652, -0.0633438, 0.00920603, 0.453505, 0.0395004, -0.860972, -0.507116);
-
-  if(normals)
-  {
-    viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud1, norms1, 1, extr_nsz, "Normals A");
-    viewer.addPointCloudNormals<pcl::PointXYZRGB, pcl::Normal>(cloud2, norms2, 1, extr_nsz, "Normals B");
-  }
-
-  if(key_sphere)
-  {
-    // Draw each keypoint as a sphere
-    for (size_t i = 0; i < keys1->size (); ++i)
-    {
-      // Get the point data
-      const pcl::PointXYZ & p = keys1->points[i];
-
-      // Pick the radius of the sphere *
-      float r = 0.1 * 1;//p.scale;
-      // * Note: the scale is given as the standard deviation of a Gaussian blur, so a
-      //   radius of 2*p.scale is a good illustration of the extent of the keypoint
-
-      // Generate a unique string for each sphere
-      std::stringstream ss ("keypointA");
-      ss << i;
-
-      // Add a sphere at the keypoint
-      viewer.addSphere (p, r, 0.0, 1.0, 1.0, ss.str ());
-    }
-    for (size_t i = 0; i < keys2->size (); ++i)
-    {
-      // Get the point data
-      const pcl::PointXYZ & p = keys2->points[i];
-
-      // Pick the radius of the sphere *
-      float r = 0.1 * 1;//p.scale;
-      // * Note: the scale is given as the standard deviation of a Gaussian blur, so a
-      //   radius of 2*p.scale is a good illustration of the extent of the keypoint
-
-      // Generate a unique string for each sphere
-      std::stringstream ss ("keypointB");
-      ss << i;
-
-      // Add a sphere at the keypoint
-      viewer.addSphere (p, r, 1.0, 1.0, 0.0, ss.str ());
-    }
-  }
-  if(show_corr)
-  {
-    for (size_t i = 0; i < inlie->size (); ++i)
-    {
-      // Get the pair of points
-      //const pcl::PointWithScale & p_left = keys1->points[inlie->at(i).index_match;
-      //const pcl::PointWithScale & p_right = keys2->points[inlie->at(i).index_query];
-      const pcl::PointXYZ & p_left = keys1->points[inlie->at(i).index_query];
-      const pcl::PointXYZ & p_right = keys2->points[inlie->at(i).index_match];
-
-      // Generate a random (bright) color
-      double r = (rand() % 100);
-      double g = (rand() % 100);
-      double b = (rand() % 100);
-      double max_channel = std::max (r, std::max (g, b));
-      r /= max_channel;
-      g /= max_channel;
-      b /= max_channel;
-
-      // Generate a unique string for each line
-      std::stringstream ss ("line");
-      ss << i;
-
-      // Draw the line
-      viewer.addLine (p_left, p_right, r, g, b, ss.str ());
-      if(!key_sphere && !keys)
-      {
-        std::stringstream ss2 ("keypointA");
-        ss2 << i;
-        viewer.addSphere (p_left, extr_mksz, 1.0, 1.0, 0.0, ss2.str ());
-        std::stringstream ss3 ("keypointB");
-        ss3 << i;
-        viewer.addSphere (p_right, extr_mksz, 0.0, 1.0, 1.0, ss3.str ());
-      }
-    }
-  }
-
-  if(col_diff)
-  {
-	  viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 0.2, 0.2, "Cloud A");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.2, 0.2, 1, "Cloud B");
-    if(normals)
-    {
-      viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.7, 0.35, 0.35, "Normals A");
-      viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0.35, 0.35, 0.7, "Normals B");
-    }
-  }
-  if(keys)
-  {
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 1, 1, 0, "Keypoints A");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_COLOR, 0, 1, 1, "Keypoints B");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 10, "Keypoints A");
-    viewer.setPointCloudRenderingProperties(pcl::visualization::RenderingProperties::PCL_VISUALIZER_POINT_SIZE, 10, "Keypoints B");
-  }
-
-  //viewer.saveScreenshot("~/data/results/img1.png");
-  //viewer.saveScreenshot("../dat/results/img1.png");
 }

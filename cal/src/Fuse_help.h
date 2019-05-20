@@ -1,31 +1,50 @@
 
+#include <vector>
+#include <Eigen/Dense>
 
-// constant values for testing
-extern std::vector<int> filt_type;
-extern std::vector<float> filt_lims;
-extern int filt_N;
-extern float filt_R;
-extern int filt_K;
-extern float filt_T;
-extern float filt_dres;
-extern int filt_keyn;
-extern float sift_ms;
-extern int sift_no;
-extern int sift_ns;
-extern int sift_mc;
-extern float sift_prct;
-extern int keys_mode;
-extern float harr_rad;
-extern bool harr_maxs;
-extern bool harr_ref;
-extern float harr_tau;
-extern float norm_r;
-extern int feat_mode;
-extern float feat_r;
-extern float corr_eps;
-extern int corr_n;
+struct Fuse_sets
+{
+public:
+    // default constructor
+    Fuse_sets();
+    // make copy of settings
+    Fuse_sets copy();
 
-extern Eigen::Matrix4f randtr;
+    // constant values for testing
+    std::vector<int> filt_type;
+    std::vector<float> filt_lims;
+    int filt_N;
+    float filt_R;
+    int filt_K;
+    float filt_T;
+    float filt_dres;
+    int filt_keyn;
+    float sift_ms;
+    int sift_no;
+    int sift_ns;
+    int sift_mc;
+    float sift_prct;
+    int keys_mode;
+    float keys_dist;
+    float harr_rad;
+    bool harr_maxs;
+    bool harr_ref;
+    float harr_tau;
+    float norm_r;
+    int feat_mode;
+    float fpfh_r;
+    float rift_r;
+    float rift_igr;
+    float pfhc_r;
+    
+    float corr_dist;
+    float corr_eps;
+    int corr_n;
 
-extern float extr_nsz;
-extern float extr_mksz;
+    Eigen::Matrix4f randtr;
+
+    bool use_thread;
+
+    float extr_nsz;
+    float extr_mksz;
+};
