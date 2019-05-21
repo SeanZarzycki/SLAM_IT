@@ -10,6 +10,9 @@ iterate:
     b   : 0.01
     n   : 6
 
+enables:
+  fuse: 1
+
 filter:
   mode: [Bound, Down, Radius]
   types:
@@ -31,14 +34,9 @@ filter:
   Down:
     res: 0.003
   Bound:
-    x: [-0.5, 0.5]
-    y: [-0.5, 0.5]
+    x: [-0.75, 0.75]
+    y: [-0.75, 0.75]
     z: [0, 1.5]
-
-enables:
-  fuse  : 1
-  icp   : 0
-
 
 normals:
   r: 0.025
@@ -88,10 +86,13 @@ correlate:
   eps : 0.7
   n   : 50
 
-
+icp:
+  en  : 1
+  mcd : 0.05
+  n   : 1
 
 transform:
-  select: 0
+  select: 4
   T:
     - name: Identity
       rows: 4
@@ -113,3 +114,8 @@ transform:
       cols: 4
       dt: d
       data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    - name: Lad2Prt
+      rows: 4
+      cols: 4
+      dt: d
+      data: [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]

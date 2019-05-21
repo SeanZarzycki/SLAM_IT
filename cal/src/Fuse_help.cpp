@@ -63,6 +63,12 @@ Fuse_sets::Fuse_sets()
     // alignment max iterations
     corr_n = 20;
 
+    /* Iterative Closest Point */
+    // max correspondence distance
+    itcp_mcd = 0.005;
+    // max iterations
+    itcp_n = 50;
+
     use_thread = true;
 
     /* Extra Parameters */
@@ -103,6 +109,9 @@ Fuse_sets Fuse_sets::copy()
     cp.corr_dist = corr_dist;
     cp.corr_eps = corr_eps;
     cp.corr_n = corr_n;
+
+    cp.itcp_mcd = itcp_mcd;
+    cp.itcp_n = itcp_n;
 
     cp.randtr = randtr;
 

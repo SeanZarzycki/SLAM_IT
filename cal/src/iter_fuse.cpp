@@ -52,9 +52,13 @@ Fuse_sets process_inputs(FileStorage fs)
     sets.rift_r = (float) fs["features"]["RIFT"]["rad"];
     sets.rift_igr = (float) fs["features"]["RIFT"]["igr"];
     sets.pfhc_r = (float) fs["features"]["PFHC"]["r"];
+    sets.corr_dist = (float) fs["correlate"]["dist"];
     sets.corr_eps = (float) fs["correlate"]["eps"];
     sets.corr_n = (int) fs["correlate"]["n"];
     
+    sets.itcp_mcd = (int) fs["icp"]["mcd"];
+    sets.itcp_n = (int) fs["icp"]["n"];
+
     // bound filter
     FileNode bounds = fs["filter"]["Bound"];
     sets.filt_lims[0] = (float) bounds["x"][0];
@@ -237,7 +241,7 @@ int main(int argc, char** argv)
     
     if(((int) fs["enables"]["fuse"]) == 0)
         pars.push_back("fuse_en=0");
-    if(((int) fs["enables"]["icp"]) == 1)
+    if(((int) fs["icp"]["en"]) == 1)
         pars.push_back("icp_en=1");
 
     Fuse_sets osets = process_inputs(fs);

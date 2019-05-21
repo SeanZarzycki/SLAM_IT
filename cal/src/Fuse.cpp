@@ -399,10 +399,11 @@ void FuseAlg::match_pfhc(pcl::PointCloud<pcl::PFHRGBSignature250>::Ptr &fs, pcl:
 Eigen::Matrix<float, 4, 4> FuseAlg::register_clouds(pcl::PointCloud<pcl::PointXYZ>::Ptr &ms, pcl::PointCloud<pcl::PointXYZ>::Ptr &md, pcl::CorrespondencesPtr cor)
 {
   // remove matched keypoints that are far away from each other
-  pcl::CorrespondencesPtr corf;
+  pcl::CorrespondencesPtr corf (new pcl::Correspondences);
   for(size_t i = 0;i < cor->size();i++)
   {
-    float dist = std::sqrt(std::pow(ms->points[inlie->at(i).index_match].x - ms->points[inlie->at(i).index_query].x, 2) + std::pow(ms->points[inlie->at(i).index_match].y - ms->points[inlie->at(i).index_query].y, 2) + std::pow(ms->points[inlie->at(i).index_match].z - ms->points[inlie->at(i).index_query].z, 2));
+    float dist = std::sqrt(std::pow(ms->points[cor->at(i).index_match].x - md->points[cor->at(i).index_query].x, 2) + std::pow(ms->points[cor->at(i).index_match].y - md->points[cor->at(i).index_query].y, 2) + std::pow(ms->points[cor->at(i).index_match].z - md->points[cor->at(i).index_query].z, 2));
+    //cout << cor->at(i).index_match << "-" << cor->at(i).index_query << ": " << dist << endl;
     if(dist <= sets->corr_dist)
       corf->push_back(cor->at(i));
   }
@@ -450,8 +451,6 @@ Eigen::Matrix<float, 4, 4> FuseAlg::register_clouds(pcl::PointCloud<pcl::PointXY
   Eigen::Matrix4f tr;
   trans.estimateRigidTransformation(*msr, *mdr, tr);
 
-
-
   return tr;
 }
 
@@ -498,7 +497,7 @@ int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
     pcl::transformPointCloud (*keys2, *keys2, sets->randtr);
   }
   pcl::transformPointCloud (*cloud2, *cloud2, sets->randtr);
-  
+  s2d = sets->randtr;
 
   if(icp_en || !fuse_en)
   {
@@ -550,17 +549,17 @@ int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
       pcl::transformPointCloud (*keys2, *keys2, s2d);
     }
   }
-  else if(icp_en)
+  if(icp_en)
   {
-    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
-    icp.setInputSource(keys2);
-    icp.setInputTarget(keys1);
-    icp.align(*keys2);
-    s2d = icp.getFinalTransformation();
+    pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
+    icp.setInputSource(cloud2);
+    icp.setInputTarget(cloud1);
+    icp.align(*cloud2);
+    s2d = icp.getFinalTransformation() * s2d;
     if(trans)
     {
-      pcl::transformPointCloud (*cloud2, *cloud2, s2d);
-      //pcl::transformPointCloud (*keys2, *keys2, s2d);
+      //pcl::transformPointCloud (*cloud2, *cloud2, s2d);
+      pcl::transformPointCloud (*keys2, *keys2, s2d);
     }
   }
 

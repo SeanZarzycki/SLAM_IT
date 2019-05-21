@@ -41,6 +41,9 @@ public:
     float corr_eps;
     int corr_n;
 
+    float itcp_mcd;
+    int itcp_n;
+
     Eigen::Matrix4f randtr;
 
     bool use_thread;
