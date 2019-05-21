@@ -44,6 +44,8 @@ public:
     float itcp_mcd;
     int itcp_n;
 
+    bool enab_scale;
+
     Eigen::Matrix4f randtr;
 
     bool use_thread;

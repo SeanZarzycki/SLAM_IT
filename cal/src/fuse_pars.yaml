@@ -11,7 +11,8 @@ iterate:
     n   : 6
 
 enables:
-  fuse: 1
+  fuse  : 1
+  scale : 1
 
 filter:
   mode: [Bound, Down, Radius]
@@ -87,9 +88,9 @@ correlate:
   n   : 50
 
 icp:
-  en  : 1
-  mcd : 0.05
-  n   : 1
+  en  : 0
+  mcd : 0.7
+  n   : 50
 
 transform:
   select: 4

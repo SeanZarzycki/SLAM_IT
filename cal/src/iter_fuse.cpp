@@ -59,6 +59,8 @@ Fuse_sets process_inputs(FileStorage fs)
     sets.itcp_mcd = (int) fs["icp"]["mcd"];
     sets.itcp_n = (int) fs["icp"]["n"];
 
+    sets.enab_scale = ((int) fs["enables"]["scale"]) > 0;
+
     // bound filter
     FileNode bounds = fs["filter"]["Bound"];
     sets.filt_lims[0] = (float) bounds["x"][0];
@@ -252,6 +254,7 @@ int main(int argc, char** argv)
     {
         view_fuse = new FuseAlg(&osets);
         Eigen::Matrix<float, 4, 4> trans;
+        trans = Eigen::Matrix<float, 4, 4>::Identity();
         pass = view_fuse->run(pars, trans);
         cout << trans << endl;
 

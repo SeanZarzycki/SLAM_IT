@@ -427,10 +427,12 @@ Eigen::Matrix<float, 4, 4> FuseAlg::register_clouds(pcl::PointCloud<pcl::PointXY
     for(size_t j = i+1;j < inlie->size();j++)
       scd += std::sqrt(std::pow(md->points[inlie->at(i).index_query].x - md->points[inlie->at(j).index_query].x, 2) + std::pow(md->points[inlie->at(i).index_query].y - md->points[inlie->at(j).index_query].y, 2) + std::pow(md->points[inlie->at(i).index_query].z - md->points[inlie->at(j).index_query].z, 2));
   // normalize
-  Eigen::Affine3f rs = Eigen::Affine3f::Identity();
+  Eigen::Matrix4f rs = Eigen::Matrix4f::Identity();
   float scale = scd / scs;
   // comment out to disable scaling
-  //rs.scale(scale);
+  if(sets->enab_scale)
+    for(int i = 0;i < 3;i++)
+      rs(i, i) = scale;
   cout << "Estimated Scale: " << scale << endl;
   // rescale source
   pcl::PointCloud<pcl::PointXYZ>::Ptr mt (new pcl::PointCloud<pcl::PointXYZ>);
@@ -451,7 +453,7 @@ Eigen::Matrix<float, 4, 4> FuseAlg::register_clouds(pcl::PointCloud<pcl::PointXY
   Eigen::Matrix4f tr;
   trans.estimateRigidTransformation(*msr, *mdr, tr);
 
-  return tr;
+  return tr * rs;
 }
 
 
@@ -497,14 +499,12 @@ int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
     pcl::transformPointCloud (*keys2, *keys2, sets->randtr);
   }
   pcl::transformPointCloud (*cloud2, *cloud2, sets->randtr);
-  s2d = sets->randtr;
+  //s2d = sets->randtr;
 
-  if(icp_en || !fuse_en)
+  if(!fuse_en)
   {
+    sets->keys_mode = 0;
     sets->feat_mode = 0;
-    s2d = sets->randtr;
-    if(!fuse_en)
-      sets->keys_mode = 0;
   }
   if(!sets->use_thread)
   {
@@ -531,7 +531,7 @@ int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
     if(c_disp)
       cout << "Cloud 1 Keypoints: " << keys1->size() << "\nCloud 2 Keypoints: " << keys2->size() << endl;
   }
-  if(fuse_en && !icp_en)
+  if(fuse_en)
   {
     if(c_disp)
       cout << "\nRegister Clouds\n";
@@ -554,14 +554,20 @@ int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
     pcl::IterativeClosestPoint<pcl::PointXYZRGB, pcl::PointXYZRGB> icp;
     icp.setInputSource(cloud2);
     icp.setInputTarget(cloud1);
+    icp.setMaxCorrespondenceDistance (sets->itcp_mcd);
+    icp.setMaximumIterations (sets->itcp_n);
     icp.align(*cloud2);
-    s2d = icp.getFinalTransformation() * s2d;
     if(trans)
     {
       //pcl::transformPointCloud (*cloud2, *cloud2, s2d);
-      pcl::transformPointCloud (*keys2, *keys2, s2d);
+      pcl::transformPointCloud (*keys2, *keys2, icp.getFinalTransformation());
     }
+    if(c_disp)
+      cout << "ICP:\n" << icp.getFinalTransformation() << endl;
+    s2d = icp.getFinalTransformation() * s2d;
   }
+
+  s2d = s2d * sets->randtr;
 
   return 0;
 }

@@ -69,6 +69,8 @@ Fuse_sets::Fuse_sets()
     // max iterations
     itcp_n = 50;
 
+    enab_scale = true;
+
     use_thread = true;
 
     /* Extra Parameters */
@@ -117,6 +119,8 @@ Fuse_sets Fuse_sets::copy()
 
     cp.use_thread = use_thread;
 
+    cp.enab_scale = enab_scale;
+    
     cp.extr_nsz = extr_nsz;
     cp.extr_mksz = extr_mksz;
 
