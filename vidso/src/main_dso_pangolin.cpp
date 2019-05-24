@@ -53,7 +53,7 @@
 #include "IOWrapper/OutputWrapper/SampleOutputWrapper.h"
 #include "IOWrapper/OutputWrapper/CustomWrapper.h"
 #include "IOWrapper/OutputWrapper/PCLWrapper.h"
-#include <pcl/visualization/cloud_viewer.h>
+// #include <pcl/visualization/cloud_viewer.h>
 
 
 std::string vignette = "";
@@ -478,13 +478,13 @@ void server_run(ImageFolderReader* reader)
 			fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
 		if(useStdOutput)
 			fullSystem->outputWrapper.push_back(new IOWrap::CustomWrapper());
-		pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
+		// pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
 		IOWrap::PCLWrapper* pcl_wrap;
 		if(usePCLOutput)
 		{
 			if(usePCLView)
 			{
-				pcl_wrap = new IOWrap::PCLWrapper(cloud_viewer);
+				pcl_wrap = new IOWrap::PCLWrapper();//cloud_viewer);
 			}
 			else
 				pcl_wrap = new IOWrap::PCLWrapper();
@@ -604,12 +604,12 @@ void server_run(ImageFolderReader* reader)
 		});
 
 
-		if(viewer != 0)
-		{
+		// if(viewer != 0)
+		// {
 			//viewer->run();
-		}
-		if(usePCLView)
-			pcl_run(cloud_viewer, pcl_wrap);
+		// }
+		// if(usePCLView)
+		// 	pcl_run(cloud_viewer, pcl_wrap);
 
 
 		runthread.join();

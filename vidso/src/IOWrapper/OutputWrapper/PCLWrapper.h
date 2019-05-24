@@ -14,8 +14,8 @@
 
 #include <pcl/common/common_headers.h>
 #include <pcl/io/pcd_io.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <pcl/visualization/cloud_viewer.h>
+// #include <pcl/visualization/pcl_visualizer.h>
+// #include <pcl/visualization/cloud_viewer.h>
 #include <Eigen/Dense>
 #include <thread>
 
@@ -41,7 +41,7 @@ private:
 	float my_scaledTH, my_absTH, my_minRelBS;
 	bool view, update, dens;
 
-	pcl::visualization::PCLVisualizer::Ptr pclviewer;
+	// pcl::visualization::PCLVisualizer::Ptr pclviewer;
 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr cloud;
 public:
 inline PCLWrapper()
@@ -58,24 +58,24 @@ inline PCLWrapper()
 	
 	printf("OUT: Created PCL OutputWrapper\n");
 }
-inline PCLWrapper(pcl::visualization::PCLVisualizer::Ptr cloud_viewer)
-{
-	my_absTH = 2e-3;
-	my_scaledTH = 2e-3;
-	my_minRelBS = 0.2;
+// inline PCLWrapper(pcl::visualization::PCLVisualizer::Ptr cloud_viewer)
+// {
+// 	my_absTH = 2e-3;
+// 	my_scaledTH = 2e-3;
+// 	my_minRelBS = 0.2;
 
-	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZRGB>);
-	cloud = tmp;
+// 	pcl::PointCloud<pcl::PointXYZRGB>::Ptr tmp (new pcl::PointCloud<pcl::PointXYZRGB>);
+// 	cloud = tmp;
 
-	update = false;
-	view = true;
-	pclviewer = cloud_viewer;
-	pclviewer->setBackgroundColor (0, 0, 0);
-	//pclviewer->addPointCloud(cloud, "Cloud");
-	pclviewer->initCameraParameters();
+// 	update = false;
+// 	view = true;
+// 	pclviewer = cloud_viewer;
+// 	pclviewer->setBackgroundColor (0, 0, 0);
+// 	//pclviewer->addPointCloud(cloud, "Cloud");
+// 	pclviewer->initCameraParameters();
 	
-	printf("OUT: Created PCL OutputWrapper\n");
-}
+// 	printf("OUT: Created PCL OutputWrapper\n");
+// }
 
 virtual ~PCLWrapper()
 {
@@ -256,19 +256,19 @@ virtual void publishKeyframes( std::vector<FrameHessian*> &frames, bool isfinal,
 
 };
 
-void pcl_run(pcl::visualization::PCLVisualizer::Ptr viewer, PCLWrapper* wrap)
-{
-	while (!viewer->wasStopped ())
-	{
-		if(wrap->update_needed())
-		{
-			cout << "Points: " << wrap->getCloud()->points.size() << "\n";
-			viewer->updatePointCloud(wrap->getCloud(), "Cloud");
-		}
-		viewer->spinOnce (100, true);
-    	usleep(100000);
-	}
-}
+// void pcl_run(pcl::visualization::PCLVisualizer::Ptr viewer, PCLWrapper* wrap)
+// {
+// 	while (!viewer->wasStopped ())
+// 	{
+// 		if(wrap->update_needed())
+// 		{
+// 			cout << "Points: " << wrap->getCloud()->points.size() << "\n";
+// 			viewer->updatePointCloud(wrap->getCloud(), "Cloud");
+// 		}
+// 		viewer->spinOnce (100, true);
+//     	usleep(100000);
+// 	}
+// }
 
 }
 }
