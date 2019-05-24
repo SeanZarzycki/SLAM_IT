@@ -93,7 +93,7 @@ void my_exit_handler(int s)
 	else
 	{
 		server_stop = true;
-		cout << "Stopping Server after this run is complete\n";
+		std::cout << "Stopping Server after this run is complete\n";
 	}
 }
 
@@ -450,16 +450,16 @@ void server_run(ImageFolderReader* reader)
 {
 	size_t fol_idx = 1 + source.find_last_of('/');
 	server_folder = source.substr(fol_idx);
-	cout << "Server Started\n";
+	std::cout << "Server Started\n";
 	IOWrap::PangolinDSOViewer* viewer = 0;
 	if(!disableAllDisplay)
 	{
 		viewer = new IOWrap::PangolinDSOViewer(wG[0],hG[0], true);
 	}
-	pcl::visualization::PCLVisualizer* cloud_viewer = 0;
+	// pcl::visualization::PCLVisualizer* cloud_viewer = 0;
 	if(usePCLView)
 	{
-		cloud_viewer = new pcl::visualization::PCLVisualizer("DSO Viewer");
+		// cloud_viewer = new pcl::visualization::PCLVisualizer("DSO Viewer");
 	}
 	int curr = 1;
 	while(!server_stop)
@@ -503,7 +503,7 @@ void server_run(ImageFolderReader* reader)
 			{
 				if(server_stop)
 				{
-					cout << "Exit now since run hasn't started\n";
+					std::cout << "Exit now since run hasn't started\n";
 					exit(0);
 				}
 				usleep(100000);
@@ -639,7 +639,7 @@ void server_run(ImageFolderReader* reader)
 			ss << source.substr(0, fol_idx) + "data/Server/" << server_folder << "/run" << i;
 			dest = ss.str();
 		}
-		cout << "Saved images to " << dest << endl;
+		std::cout << "Saved images to " << dest << std::endl;
 		boost::filesystem::rename(source, dest);
 		boost::filesystem::create_directory(source);
 		// rename pcd file
@@ -721,15 +721,15 @@ int main( int argc, char** argv )
 			fullSystem->outputWrapper.push_back(new IOWrap::SampleOutputWrapper());
 		if(useStdOutput)
 			fullSystem->outputWrapper.push_back(new IOWrap::CustomWrapper());
-		pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
+		// pcl::visualization::PCLVisualizer::Ptr cloud_viewer;
 		IOWrap::PCLWrapper* pcl_wrap;
 		if(usePCLOutput)
 		{
 			if(usePCLView)
 			{
-				pcl::visualization::PCLVisualizer::Ptr tmp_view (new pcl::visualization::PCLVisualizer("DSO Viewer"));
-				cloud_viewer = tmp_view;
-				pcl_wrap = new IOWrap::PCLWrapper(cloud_viewer);
+				// pcl::visualization::PCLVisualizer::Ptr tmp_view (new pcl::visualization::PCLVisualizer("DSO Viewer"));
+				// cloud_viewer = tmp_view;
+				pcl_wrap = new IOWrap::PCLWrapper();//cloud_viewer);
 			}
 			else
 				pcl_wrap = new IOWrap::PCLWrapper();
@@ -994,8 +994,8 @@ int main( int argc, char** argv )
 
 		if(viewer != 0)
 			viewer->run();
-		if(usePCLView)
-			pcl_run(cloud_viewer, pcl_wrap);
+		// if(usePCLView)
+		// 	pcl_run(cloud_viewer, pcl_wrap);
 
 
 		runthread.join();
