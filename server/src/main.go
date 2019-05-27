@@ -110,27 +110,29 @@ func handleRequest(c net.Conn) {
 		err = json.Unmarshal([]byte(netData), &m)
 		if err != nil {
 			log.Println(err)
-			return
-		}
-		base64Dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(m.ImageBase64))
-		imgBody, _ := ioutil.ReadAll(base64Dec)
-		_, err = jpeg.Decode(bytes.NewReader(imgBody))
-		if err != nil {
-			log.Println(err)
-		}
-		addr := strings.Split(c.RemoteAddr().String(), ":")
-		ip := addr[0]
-		dir := ImageDir + ip
-		dirExists, _ := exists(dir)
-		if !dirExists {
-			os.MkdirAll(dir, 0777)
+		} else {
+			base64Dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(m.ImageBase64))
+			imgBody, _ := ioutil.ReadAll(base64Dec)
+			_, err = jpeg.Decode(bytes.NewReader(imgBody))
+			if err != nil {
+				log.Println(err)
+			} else {
+				addr := strings.Split(c.RemoteAddr().String(), ":")
+				ip := addr[0]
+				dir := ImageDir + ip
+				dirExists, _ := exists(dir)
+				if !dirExists {
+					os.MkdirAll(dir, 0777)
+				}
+
+				filename := uint2jpegfile(highestFileNameValue(dir) + 1)
+
+				path := dir + "/" + filename
+				log.Println("Writing to " + path)
+				ioutil.WriteFile(path, imgBody, 0664)
+			}
 		}
 
-		filename := uint2jpegfile(highestFileNameValue(dir) + 1)
-
-		path := dir + "/" + filename
-		log.Println("Writing to " + path)
-		ioutil.WriteFile(path, imgBody, 0664)
 	}
 }
 
