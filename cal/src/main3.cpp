@@ -83,7 +83,7 @@ int main (int argc, char** argv)
     two_en = false;
     three_en = true;
     filename = "Run5.pcd";
-    filename2 = "Mark Run.pcd";
+    filename2 = "MarkRun.pcd";
     filename3 = "run3.pcd";
   }
   temp = pcl::console::find_argument (argc, argv, "-c");
