@@ -517,7 +517,7 @@ int main (int argc, char** argv)
   //viewer->addCoordinateSystem (6);
 
   // prep virtual walkthrough
-  fl.open("../dat/match/" + file3.substr(0, file1.length() - 4) + "_cam.txt");
+  fl.open("../dat/match/" + file1.substr(0, file1.length() - 4) + "_cam.txt");
   getline(fl, line);
   sscanf(line.c_str(), "%*s %d", &count);
   std::vector<float> av, bv, cv, dv, ev, fv;
