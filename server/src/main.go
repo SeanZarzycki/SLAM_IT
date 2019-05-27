@@ -98,23 +98,26 @@ func handler(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleRequest(c net.Conn) {
+	// currOffset := 0
 	for {
 		netData, err := bufio.NewReader(c).ReadString('\n')
 		if err != nil {
+			log.Println("Read Error!")
 			fmt.Println(err)
 			return
 		}
-
 		m := Message{}
 
 		err = json.Unmarshal([]byte(netData), &m)
 		if err != nil {
+			log.Println("JSON Error!")
 			log.Println(err)
 		} else {
 			base64Dec := base64.NewDecoder(base64.StdEncoding, strings.NewReader(m.ImageBase64))
 			imgBody, _ := ioutil.ReadAll(base64Dec)
 			_, err = jpeg.Decode(bytes.NewReader(imgBody))
 			if err != nil {
+				log.Println("Jpeg Error!")
 				log.Println(err)
 			} else {
 				addr := strings.Split(c.RemoteAddr().String(), ":")
