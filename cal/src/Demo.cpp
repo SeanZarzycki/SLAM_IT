@@ -328,7 +328,6 @@ int main (int argc, char** argv)
   // transform
   for(int i = 0;i < 4;i++)
   {
-    std::string line;
     getline(fl, line);
     float a, b, c, d;
     sscanf(line.c_str(), "%f %f %f %f", &a, &b, &c, &d);
@@ -517,6 +516,25 @@ int main (int argc, char** argv)
   //viewer->setSize(1024, 512);
   //viewer->addCoordinateSystem (6);
 
+  // prep virtual walkthrough
+  fl.open("../dat/match/" + file3.substr(0, file1.length() - 4) + "_cam.txt");
+  getline(fl, line);
+  sscanf(line.c_str(), "%*s %d", &count);
+  std::vector<float> av, bv, cv, dv, ev, fv;
+  for(int i = 0;i < count;i++)
+  {
+    getline(fl, line);
+    float a, b, c, d, a2, b2;
+    sscanf(line.c_str(), "%f %f %f %f %f %f", &a, &b, &c, &d, &a2, &b2);
+    av.push_back(12*a);
+    bv.push_back(12*b);
+    cv.push_back(12*c);
+    dv.push_back(12*d);
+    ev.push_back(12*a2);
+    fv.push_back(12*b2);
+  }
+  fl.close();
+
   //--------------------
   // -----Main loop-----
   //--------------------
@@ -531,7 +549,7 @@ int main (int argc, char** argv)
         key_show = true;
         col_diff = true;
         toggle_color();
-        toggle_keypoints();
+        toggle_keypoints();/*
         // no fusion
         pcl::copyPointCloud(*cloud1, *cloud1d);
         pcl::copyPointCloud (*cloud2, *cloud2d);
@@ -701,9 +719,23 @@ int main (int argc, char** argv)
         }
         toggle_color();
         toggle_matches();
-
+        */
         // Virtual Walkthrough
+        for(int i = 0;i < count;i++)
+        {
+          viewer->setCameraPosition(av[i], bv[i], cv[i], dv[i], ev[i], fv[i], 0, 0, 1);
 
+          viewer->spinOnce();
+          
+          //cout << "Frame " << i << " out of " << count << endl;
+          if(save_on)
+          {
+            save_frame(6, i);
+            ct++;
+          }
+          else
+            boost::this_thread::sleep (boost::posix_time::microseconds (5000));
+        }
         
 
         anim = false;
