@@ -188,6 +188,12 @@ void save_frame(int mode, int ct)
       case 5:
         viewer->saveScreenshot("/home/steve/repos/SLAM_IT/cal/dat/results/stage5/img" + num2str(ct, 5) + ".png");
         break;
+      case 6:
+        viewer->saveScreenshot("/home/steve/repos/SLAM_IT/cal/dat/results/stage6/img" + num2str(ct, 5) + ".png");
+        break;
+      case 7:
+        viewer->saveScreenshot("/home/steve/repos/SLAM_IT/cal/dat/results/stage7/img" + num2str(ct, 5) + ".png");
+        break;
     }
   }
 }
@@ -549,7 +555,7 @@ int main (int argc, char** argv)
         key_show = true;
         col_diff = true;
         toggle_color();
-        toggle_keypoints();/*
+        toggle_keypoints();
         // no fusion
         pcl::copyPointCloud(*cloud1, *cloud1d);
         pcl::copyPointCloud (*cloud2, *cloud2d);
@@ -719,7 +725,35 @@ int main (int argc, char** argv)
         }
         toggle_color();
         toggle_matches();
-        */
+        for(int i = 0;i < anim_frames;i++)
+        {
+          float mod = 1.0 * i / (anim_frames - 1);
+          Eigen::Matrix4f trt2 = (1 - mod) * at2.matrix() + mod * b2a;
+          Eigen::Matrix4f trt3 = (1 - mod) * at3.matrix() + mod * c2a;
+          pcl::transformPointCloud (*cloud2, *cloud2d, trt2);
+          pcl::transformPointCloud (*cloud3, *cloud3d, trt3);
+          pcl::transformPointCloud (*k2, *k2d, trt2);
+          pcl::transformPointCloud (*k3, *k3d, trt3);
+          viewer->updatePointCloud(cloud2d, "Cloud B");
+          viewer->updatePointCloud(cloud3d, "Cloud C");
+          viewer->updatePointCloud(k1d, "Keypoints A");
+          viewer->updatePointCloud(k2d, "Keypoints B");
+          viewer->updatePointCloud(k3d, "Keypoints C");
+          toggle_matches();
+          toggle_matches();
+          mod = 1.0*i / (anim_frames-1);
+          viewer->setCameraPosition(av[0]*mod, (-60.0*sqrt(2))*(1-mod)+bv[0]*mod, (27-60.0*sqrt(2))*(1-mod)+cv[0]*mod, dv[0]*mod, ev[0]*mod, 27*(1-mod)+fv[0]*mod, 0, 0, 1);
+
+          viewer->spinOnce();
+
+          if(save_on)
+          {
+            save_frame(6, i);
+            ct++;
+          }
+          else
+            boost::this_thread::sleep (boost::posix_time::microseconds (5000));
+        }
         // Virtual Walkthrough
         for(int i = 0;i < count;i++)
         {
@@ -730,7 +764,7 @@ int main (int argc, char** argv)
           //cout << "Frame " << i << " out of " << count << endl;
           if(save_on)
           {
-            save_frame(6, i);
+            save_frame(7, i);
             ct++;
           }
           else
