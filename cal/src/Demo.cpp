@@ -650,7 +650,7 @@ int main (int argc, char** argv)
         viewer->updatePointCloud(k1d, "Keypoints A");
         viewer->updatePointCloud(k2d, "Keypoints B");
         viewer->updatePointCloud(k3d, "Keypoints C");
-        toggle_color();
+        //toggle_color();
         viewer->spinOnce();
         if(save_on)
         {
@@ -686,7 +686,7 @@ int main (int argc, char** argv)
         }
         else
           boost::this_thread::sleep (boost::posix_time::microseconds (1000000));
-        toggle_color();
+        /*toggle_color();
         viewer->spinOnce();
         if(save_on)
         {
@@ -694,7 +694,7 @@ int main (int argc, char** argv)
           ct++;
         }
         else
-          boost::this_thread::sleep (boost::posix_time::microseconds (1000000));
+          boost::this_thread::sleep (boost::posix_time::microseconds (1000000));*/
         for(int i = 0;i < anim_frames;i++)
         {
           float mod = 1.0 * i / (anim_frames - 1);
