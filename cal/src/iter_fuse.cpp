@@ -258,6 +258,24 @@ int main(int argc, char** argv)
         pass = view_fuse->run(pars, trans);
         cout << trans << endl;
 
+
+        ofstream fl;
+        fl.open("../dat/match/" + view_fuse->file2.substr(0, view_fuse->file2.length() - 4) + "To" + view_fuse->file1.substr(0, view_fuse->file1.length() - 4) + ".txt");
+        fl << trans << endl;
+        fl << view_fuse->file1 << " " << view_fuse->keys1->points.size() << endl;
+        for(size_t i = 0;i < view_fuse->keys1->points.size();i++)
+            fl << view_fuse->keys1->points[i].x << " " << view_fuse->keys1->points[i].y << " " << view_fuse->keys1->points[i].z << endl;
+        fl << view_fuse->file2 << " " << view_fuse->keys2->points.size() << endl;
+        for(size_t i = 0;i < view_fuse->keys2->points.size();i++)
+            fl << view_fuse->keys2->points[i].x << " " << view_fuse->keys2->points[i].y << " " << view_fuse->keys2->points[i].z << endl;
+        fl << "Corr " << view_fuse->corr->size() << endl;
+        for(size_t i = 0;i < view_fuse->corr->size();i++)
+            fl << view_fuse->corr->at(i).index_query << " " << view_fuse->corr->at(i).index_match << endl;
+        fl << "Inlie " << view_fuse->inlie->size() << endl;
+        for(size_t i = 0;i < view_fuse->inlie->size();i++)
+            fl << view_fuse->inlie->at(i).index_query << " " << view_fuse->inlie->at(i).index_match << endl;
+        fl.close();
+
           // display clouds
         if(view_fuse->disp_view)
         {

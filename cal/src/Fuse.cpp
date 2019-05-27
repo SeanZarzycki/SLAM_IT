@@ -453,6 +453,7 @@ Eigen::Matrix<float, 4, 4> FuseAlg::register_clouds(pcl::PointCloud<pcl::PointXY
   Eigen::Matrix4f tr;
   trans.estimateRigidTransformation(*msr, *mdr, tr);
 
+
   return tr * rs;
 }
 
@@ -479,9 +480,9 @@ int FuseAlg::run(std::vector<char*> argv, Eigen::Matrix<float, 4, 4> &s2d)
       i++;
   }
   if(file1.empty())
-      file1 = "run3.pcd";
+      file1 = "Run5.pcd";
   if(file2.empty())
-      file2 = "run4.pcd";
+      file2 = "run3.pcd";
 
   // load point clouds
   pcl::PCDReader reader;
