@@ -542,6 +542,7 @@ int main (int argc, char** argv)
   {
     if(anim)
     {
+	viewer->setSize(1920, 1080);
         int ct = 0;
         std::cout << "Start animation\n";
         viewer->setCameraPosition(0, -60*sqrt(2), 27+60*sqrt(2), 0, 0, 27, 0, sqrt(2)/2, sqrt(2)/2);
