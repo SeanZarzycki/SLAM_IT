@@ -727,22 +727,8 @@ int main (int argc, char** argv)
         toggle_matches();
         for(int i = 0;i < anim_frames;i++)
         {
-          float mod = 1.0 * i / (anim_frames - 1);
-          Eigen::Matrix4f trt2 = (1 - mod) * at2.matrix() + mod * b2a;
-          Eigen::Matrix4f trt3 = (1 - mod) * at3.matrix() + mod * c2a;
-          pcl::transformPointCloud (*cloud2, *cloud2d, trt2);
-          pcl::transformPointCloud (*cloud3, *cloud3d, trt3);
-          pcl::transformPointCloud (*k2, *k2d, trt2);
-          pcl::transformPointCloud (*k3, *k3d, trt3);
-          viewer->updatePointCloud(cloud2d, "Cloud B");
-          viewer->updatePointCloud(cloud3d, "Cloud C");
-          viewer->updatePointCloud(k1d, "Keypoints A");
-          viewer->updatePointCloud(k2d, "Keypoints B");
-          viewer->updatePointCloud(k3d, "Keypoints C");
-          toggle_matches();
-          toggle_matches();
-          mod = 1.0*i / (anim_frames-1);
-          viewer->setCameraPosition(av[0]*mod, (-60.0*sqrt(2))*(1-mod)+bv[0]*mod, (27-60.0*sqrt(2))*(1-mod)+cv[0]*mod, dv[0]*mod, ev[0]*mod, 27*(1-mod)+fv[0]*mod, 0, 0, 1);
+          float mod = 1.0*i / (anim_frames-1);
+          viewer->setCameraPosition(av[0]*mod, (-60.0*sqrt(2))*(1-mod)+bv[0]*mod, (27+60.0*sqrt(2))*(1-mod)+cv[0]*mod, dv[0]*mod, ev[0]*mod, 27*(1-mod)+fv[0]*mod, 0, 0, 1);
 
           viewer->spinOnce();
 
