@@ -31,7 +31,6 @@
 #include "util/MinimalImage.h"
 #include "map"
 
-#include <fstream>
 
 namespace cv {
         class Mat;
@@ -114,8 +113,6 @@ namespace IOWrap
 
 class Output3DWrapper
 {
-protected:
-	std::ofstream outfile1, outfile2;
 public:
         Output3DWrapper() {}
         virtual ~Output3DWrapper() {}

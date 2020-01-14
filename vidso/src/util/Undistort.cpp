@@ -495,14 +495,21 @@ ImageAndExposure* Undistort::undistort(const MinimalImageB* image_raw, const Min
 	ImageAndExposure* result = new ImageAndExposure(w, h, timestamp);
 	photometricUndist->output->copyMetaTo(*result);
 
-	float* in_r = new float[w*h];
-	float* in_g = new float[w*h];
-	float* in_b = new float[w*h];
-	for(size_t i = 0;i < w*h;i++)
+	float* in_b_dumb = new float[wOrg*hOrg];
+	float* in_r = new float[wOrg*hOrg];
+	float* in_g = new float[wOrg*hOrg];
+
+	for(size_t i = 0;i < wOrg*hOrg;i++)
 	{
-		in_r[i] = col_raw->data[i][0];
-		in_g[i] = col_raw->data[i][1];
-		in_b[i] = col_raw->data[i][2];
+		in_r[i] = col_raw->data[i](2);
+	}
+	for(size_t i = 0;i < wOrg*hOrg;i++)
+	{
+		in_g[i] = col_raw->data[i](1);
+	}
+	for(size_t i = 0;i < wOrg*hOrg;i++)
+	{
+		in_b_dumb[i] = col_raw->data[i](0);
 	}
 	
 	if (!passthrough)
@@ -575,7 +582,7 @@ ImageAndExposure* Undistort::undistort(const MinimalImageB* image_raw, const Min
 				const float* src = in_data + xxi + yyi * wOrg;
 				const float* src_r = in_r + xxi + yyi * wOrg;
 				const float* src_g = in_g + xxi + yyi * wOrg;
-				const float* src_b = in_b + xxi + yyi * wOrg;
+				const float* src_b = in_b_dumb + xxi + yyi * wOrg;
 
 				// interpolate (bilinear)
 				out_data[idx] =  xxyy * src[1+wOrg]
@@ -586,10 +593,7 @@ ImageAndExposure* Undistort::undistort(const MinimalImageB* image_raw, const Min
 									+ (yy-xxyy) * src_r[wOrg]
 									+ (xx-xxyy) * src_r[1]
 									+ (1-xx-yy+xxyy) * src_r[0];
-				out_g[idx] =  xxyy * src_g[1+wOrg]
-									+ (yy-xxyy) * src_g[wOrg]
-									+ (xx-xxyy) * src_g[1]
-									+ (1-xx-yy+xxyy) * src_g[0];
+				out_g[idx] =  xxyy * src_g[1+wOrg] + (yy-xxyy) * src_g[wOrg] + (xx-xxyy) * src_g[1] + (1-xx-yy+xxyy) * src_g[0];
 				out_b[idx] =  xxyy * src_b[1+wOrg]
 									+ (yy-xxyy) * src_b[wOrg]
 									+ (xx-xxyy) * src_b[1]
@@ -613,7 +617,7 @@ ImageAndExposure* Undistort::undistort(const MinimalImageB* image_raw, const Min
 
 	delete[] in_r;
 	delete[] in_g;
-	delete[] in_b;
+	delete[] in_b_dumb;
 
 	applyBlurNoise(result->image);
 	// ??? apply blur to color channels too?

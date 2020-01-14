@@ -39,8 +39,41 @@ namespace IOWrap
 
 
 
+PangolinDSOViewer::PangolinDSOViewer(std::string title_name, int w, int h, bool startRunThread)
+{
+	this->title_name = title_name;
+	this->w = w;
+	this->h = h;
+	running=true;
+
+
+	{
+		boost::unique_lock<boost::mutex> lk(openImagesMutex);
+		internalVideoImg = new MinimalImageB3(w,h);
+		internalKFImg = new MinimalImageB3(w,h);
+		internalResImg = new MinimalImageB3(w,h);
+		videoImgChanged=kfImgChanged=resImgChanged=true;
+
+		internalVideoImg->setBlack();
+		internalKFImg->setBlack();
+		internalResImg->setBlack();
+	}
+
+
+	{
+		currentCam = new KeyFrameDisplay();
+	}
+
+	needReset = false;
+
+
+    if(startRunThread)
+        runThread = boost::thread(&PangolinDSOViewer::run, this);
+
+}
 PangolinDSOViewer::PangolinDSOViewer(int w, int h, bool startRunThread)
 {
+	this->title_name = "Main";
 	this->w = w;
 	this->h = h;
 	running=true;
@@ -83,7 +116,7 @@ void PangolinDSOViewer::run()
 {
 	printf("START PANGOLIN!\n");
 
-	pangolin::CreateWindowAndBind("Main",2*w,2*h);
+	pangolin::CreateWindowAndBind(title_name,2*w,2*h);
 	const int UI_WIDTH = 180;
 
 	glEnable(GL_DEPTH_TEST);
@@ -290,9 +323,9 @@ void PangolinDSOViewer::run()
 
 
 	printf("QUIT Pangolin thread!\n");
-	printf("I'll just kill the whole process.\nSo Long, and Thanks for All the Fish!\n");
+	//printf("I'll just kill the whole process.\nSo Long, and Thanks for All the Fish!\n");
 
-	exit(1);
+	//exit(1);
 }
 
 

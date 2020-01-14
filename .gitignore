@@ -8,6 +8,11 @@
 *.obj
 
 cal/build*
+cal/dat/results*
+cal/dat/dump*
+vidso/build*
+server/images*
+cal/dat/mobile*
 
 # Precompiled Headers
 *.gch

@@ -184,6 +184,12 @@ public:
 		return  undistort->getOriginalSize();
 	}
 
+	void reloadDir()
+	{
+		files.clear();
+		getdir (path, files);
+	}
+
 	void getCalibMono(Eigen::Matrix3f &K, int &w, int &h)
 	{
 		K = undistort->getK().cast<float>();
@@ -321,10 +327,11 @@ private:
 		MinimalImageB* minimg = getImageRaw_internal(id, 0);
 		MinimalImageB3* col_img = getImageRaw_internal3(id, 0);
 		ImageAndExposure* ret2 = undistort->undistort(
-				minimg,
+				minimg, col_img,
 				(exposures.size() == 0 ? 1.0f : exposures[id]),
 				(timestamps.size() == 0 ? 0.0 : timestamps[id]));
 		delete minimg;
+		delete col_img;
 		return ret2;
 	}
 

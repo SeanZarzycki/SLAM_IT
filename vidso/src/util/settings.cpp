@@ -212,6 +212,15 @@ bool setting_debugout_runquiet = false;
 int sparsityFactor = 5;	// not actually a setting, only some legacy stuff for coarse initializer.
 
 
+// PCL Wrapper
+int pcl_its = 3;
+float pcl_dx = 30; // filt width is x2+1
+float pcl_dy = 30; // filt height is x2+1
+float pcl_prc = 0.125; // percent ignored of data at lower and upper bounds
+int pcl_ps = 1 / pcl_prc; // number of points required in filter for pass
+float pcl_var = 1e20;//(0.005*pcl_dx)/3 * (0.005*pcl_dx); // max variance allowed per blocke
+
+
 void handleKey(char k)
 {
 	char kkk = k;

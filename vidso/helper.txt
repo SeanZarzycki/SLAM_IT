@@ -12,3 +12,20 @@ output version:
 table:
 ./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=~/data/Table1/camera.txt quiet=1 results=1 nogui=1 nolog=1 nomt=1
 ./bin/dso_dataset preset=0 mode=1 files=~/data/Table2/Images calib=~/data/Table2/camera.txt quiet=1 results=1 nogui=1 reverse=1
+
+
+./bin/dso_dataset preset=0 mode=1 files=~/data/room1/Images calib=~/data/room1/camera.txt quiet=1 results=1 nogui=1 reverse=1
+
+
+./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=0 quiet=1 nogui=1 nolog=1
+./bin/dso_dataset preset=0 mode=1 files=~/data/Table1/Images calib=../mark_camera.txt pcl=1 pclview=1 quiet=0 nogui=1 nolog=1
+
+
+./bin/dso_dataset preset=0 mode=1 files=~/data/Server/Kitchen1 calib=../sean_camera.txt pcl=1 quiet=1 nogui=0 dens=1
+./bin/dso_dataset preset=0 mode=1 files=~/data/Server/Kitchen2 calib=../sean_camera.txt pcl=1 quiet=1 nogui=1 dens=1
+
+Server:
+// use preset 4, assign folder and camera file
+./bin/dso_dataset preset=4 files=~/repos/SLAM_IT/server/images calib=../tim_camera.txt
+./bin/dso_dataset preset=4 files=~/data/test calib=../mark_camera.txt
+./bin/dso_dataset preset=4 files=~/data/test calib=../mark_camera.txt nogui=0 quiet=0

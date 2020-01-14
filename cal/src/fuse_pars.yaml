@@ -1,0 +1,122 @@
+%YAML:1.0
+iterate:
+  - var : [keypoints,Harris,r]
+    a   : 0.01
+    b   : 0.25
+    n   : 25
+
+  - var : [filter,Down,res]
+    a   : 0.005
+    b   : 0.01
+    n   : 6
+
+enables:
+  fuse  : 1
+  scale : 1
+
+filter:
+  mode: [Bound, Down, Radius]
+  types:
+    - name: Radius
+      v   : 1
+    - name: Stat
+      v   : 2
+    - name: Down
+      v   : 3
+    - name: Bound
+      v   : 4
+  
+  Radius:
+    n: 300
+    r: 0.1
+  Stat:
+    K: 100
+    T: 0.1
+  Down:
+    res: 0.003
+  Bound:
+    x: [-01, 01]
+    y: [-01, 01]
+    z: [0, 1.5]
+
+normals:
+  r: 0.025
+
+keypoints:
+  mode: Harris
+  types:
+    - name: SIFT
+      v   : 1
+    - name: Harris
+      v   : 2
+
+  dist: 0.02
+  
+  SIFT:
+    min scale   : 0.1
+    octaves     : 8
+    scales      : 10
+    min contrast: 0.0001
+    prctile     : 0
+  Harris:
+    r       : 0.1
+    t       : 0.0
+    max_sup : True
+    refine  : True
+
+features:
+  mode: PFHC
+  types:
+    - name: FPFH
+      v   : 1
+    - name: RIFT
+      v   : 2
+    - name: PFHC
+      v   : 3
+
+  FPFH:
+    r: 0.2
+  RIFT:
+    igr   : 0.1
+    rad   : 0.2
+  PFHC:
+    r: 0.1
+
+correlate:
+  dist: 0.4
+  eps : 0.3
+  n   : 50
+
+icp:
+  en  : 0
+  mcd : 0.7
+  n   : 50
+
+transform:
+  select: 4
+  T:
+    - name: Identity
+      rows: 4
+      cols: 4
+      dt: d
+      data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    - name: Rotate
+      rows: 4
+      cols: 4
+      dt: d
+      data: [0.866025, 0, 0.5, 0, 0, 1, 0, 0, -0.5, 0, 0.866025, 0, 0, 0, 0, 1]
+    - name: Translate
+      rows: 4
+      cols: 4
+      dt: d
+      data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0.75, 0, 0, 0, 1]
+    - name: Scale
+      rows: 4
+      cols: 4
+      dt: d
+      data: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
+    - name: Lad2Prt
+      rows: 4
+      cols: 4
+      dt: d
+      data: [0, 1, 0, 0, -1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
